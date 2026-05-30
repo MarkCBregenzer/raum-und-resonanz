@@ -1,65 +1,88 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { SiteHeader } from "./components/SiteHeader";
+import { SiteFooter } from "./components/SiteFooter";
+import {
+  Hero,
+  WelcomeSection,
+  MethodsSection,
+  AboutSection,
+  CalmSection,
+  ContactSection,
+} from "./components/Sections";
+import type { Mood } from "./components/MoodToggle";
+
+/* Startseite — Raum & Resonanz
+   Diese Seite ist als Client-Component umgesetzt, weil sie zwei Browser-
+   Verhalten braucht, die nur dort funktionieren:
+     1. Atmosphären-Wahl persistiert in localStorage.
+     2. Reveal-on-Scroll per IntersectionObserver.
+   Die einzelnen Abschnitte sind aber reines Markup — die Interaktivität
+   bleibt also in diesem einen Wrapper konzentriert. */
+
+const DEFAULT_MOOD: Mood = "licht";
 
 export default function Home() {
+  // SSR-sicher: Server rendert Default, Client lädt gespeicherten Wert in useEffect.
+  // Sonst hätte der Server-HTML einen anderen data-mood-Wert als das Client-Render
+  // direkt nach Hydrierung → Hydration-Mismatch-Warnung.
+  const [mood, setMoodState] = useState<Mood>(DEFAULT_MOOD);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rr-mood");
+      if (saved === "licht" || saved === "geborgen") setMoodState(saved);
+    } catch {
+      // Inkognito / blockiertes Storage — egal, Default bleibt stehen.
+    }
+  }, []);
+
+  const setMood = useCallback((v: Mood) => {
+    setMoodState(v);
+    try {
+      localStorage.setItem("rr-mood", v);
+    } catch {
+      // s.o.
+    }
+  }, []);
+
+  // Reveal-Animationen: Elemente mit Klasse .reveal werden eingeblendet,
+  // sobald sie in den Viewport scrollen. Respektiert prefers-reduced-motion.
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const els = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    if (reduce || !("IntersectionObserver" in window)) {
+      els.forEach((el) => el.classList.add("is-visible"));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) {
+            en.target.classList.add("is-visible");
+            io.unobserve(en.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div data-mood={mood} data-bokeh="on">
+      <SiteHeader mood={mood} setMood={setMood} />
+      <main>
+        <Hero />
+        <WelcomeSection />
+        <MethodsSection />
+        <AboutSection />
+        <CalmSection />
+        <ContactSection />
       </main>
+      <SiteFooter />
     </div>
   );
 }
