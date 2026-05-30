@@ -388,9 +388,28 @@ img { max-width: 100%; display: block; }
   line-height: 1;
 }
 
+/* Hamburger ab klassischem Tablet-Breakpoint (1024px). Auf Desktop
+   (>1024px) zeigt der Header die volle Navigation — siehe Header-
+   Container-Override unten, der dafür sorgt, dass der Inhalt auch
+   auf 13″-Laptops (1280px) ohne Overflow in eine Zeile passt. */
 @media (max-width: 1024px) {
   .nav-links, .nav-actions { display: none; }
   .nav-toggle { display: flex; }
+}
+
+/* ---- Header-Band darf voll Viewport-Breite einnehmen ----
+   Sektions-Container bleibt bei max-width 1160px (Lesbarkeit langer
+   Fließtexte im Garamond — ca. 70–85 Zeichen/Zeile). Der Header
+   ist ein Sonderfall: er muss horizontalen Platz für Logo + 5
+   Nav-Links + MoodToggle + Termin-Button stellen, was als Summe
+   ~1197px Inhaltsbreite braucht. Daher lassen wir nur den
+   Header-Container voll aufgehen und reduzieren das horizontale
+   Padding, damit nichts mehr aus dem Viewport rausragt — und
+   gleichzeitig kein toter Rand entsteht, wenn das Browserfenster
+   sehr breit ist. */
+.site-header .container {
+  max-width: 100%;
+  padding-inline: clamp(16px, 2vw, 32px);
 }
 
 /* Header hat in beiden Stimmungen einen hellen Hintergrund (body-bg scheint
