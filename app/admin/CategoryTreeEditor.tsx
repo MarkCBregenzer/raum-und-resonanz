@@ -8,6 +8,7 @@ import type {
   ImagePosition,
   ImageSize,
 } from "@/lib/default-content";
+import { ImageField } from "./ImageField";
 
 /* CategoryTreeEditor — Slice 2b
    ------------------------------------------------------------
@@ -690,23 +691,11 @@ function SubpageCard(props: SubpageCardProps) {
           }
         />
       </Field>
-      <Field label="Karten-Bild (URL, optional)">
-        <input
-          type="text"
-          placeholder="z. B. /kathrin.png oder leer lassen"
-          value={sub.cardImage ?? ""}
-          onChange={(e) =>
-            props.onUpdateSubpage(
-              catIdx,
-              subIdx,
-              "cardImage",
-              // Leerer String → null, damit das Feld konsistent
-              // mit dem Default-Inhalt bleibt.
-              e.target.value.trim() === "" ? null : e.target.value,
-            )
-          }
-        />
-      </Field>
+      <ImageField
+        label="Karten-Bild (optional)"
+        value={sub.cardImage ?? null}
+        onChange={(v) => props.onUpdateSubpage(catIdx, subIdx, "cardImage", v)}
+      />
       <Field label="Intro-Absatz (oben auf der Unterseite)">
         <textarea
           rows={3}
@@ -836,20 +825,16 @@ function BlockCard(props: BlockCardProps) {
           </Field>
 
           {/* Feature #2/#3: optionales Bild im Text-Block.
-              URL-Feld (Upload folgt im Blob-Slice) — leer = kein Bild.
-              Position/Größe erscheinen erst, wenn ein Bild gesetzt ist. */}
-          <Field label="Bild im Textblock (URL, optional — z. B. /kathrin.png)">
-            <input
-              type="text"
-              value={block.image ?? ""}
-              placeholder="leer lassen für reinen Text"
-              onChange={(e) =>
-                props.onUpdateBlock(catIdx, subIdx, blockIdx, {
-                  image: e.target.value.trim() === "" ? null : e.target.value,
-                })
-              }
-            />
-          </Field>
+              Hochladen oder hineinziehen (wie im Claude-Design) — leer
+              = kein Bild. Position/Größe erscheinen erst, sobald ein
+              Bild gesetzt ist. */}
+          <ImageField
+            label="Bild im Textblock (optional)"
+            value={block.image ?? null}
+            onChange={(v) =>
+              props.onUpdateBlock(catIdx, subIdx, blockIdx, { image: v })
+            }
+          />
 
           {block.image && (
             <>
@@ -889,18 +874,13 @@ function BlockCard(props: BlockCardProps) {
         </>
       ) : (
         <>
-          <Field label="Bild-URL (z. B. /kathrin.png — Upload folgt im nächsten Slice)">
-            <input
-              type="text"
-              value={block.src ?? ""}
-              placeholder="leer lassen für Platzhalter"
-              onChange={(e) =>
-                props.onUpdateBlock(catIdx, subIdx, blockIdx, {
-                  src: e.target.value.trim() === "" ? null : e.target.value,
-                })
-              }
-            />
-          </Field>
+          <ImageField
+            label="Bild"
+            value={block.src ?? null}
+            onChange={(v) =>
+              props.onUpdateBlock(catIdx, subIdx, blockIdx, { src: v })
+            }
+          />
           <Field label="Bildunterschrift">
             <input
               type="text"
