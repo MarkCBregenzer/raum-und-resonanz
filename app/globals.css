@@ -925,6 +925,71 @@ img { max-width: 100%; display: block; }
 .legal .ph { color: var(--gold-deep); font-style: italic; }
 
 /* ============================================================
+   Unterseiten-Layout — Text-Block mit Bild (Feature #2/#3)
+   ------------------------------------------------------------
+   Ein Text-Block kann optional ein Bild tragen. Position (oben /
+   unten / links / rechts) und Größe (S/M/L) werden rein über
+   diese Klassen gesteuert — das Markup (Media-Container VOR dem
+   Textkörper) bleibt immer gleich, nur Flex-Richtung und Breite
+   ändern sich. So erzeugen öffentliche Seite und Live-Vorschau
+   garantiert dasselbe Bild, weil beide denselben `BlockView`
+   und dieses Stylesheet nutzen.
+   ============================================================ */
+.sub-block.sub-text.has-img {
+  display: flex;
+  gap: clamp(20px, 3vw, 40px);
+  align-items: flex-start;
+}
+/* Position = Flex-Richtung. Media steht im Markup zuerst; bei
+   "bottom"/"right" dreht column-reverse/row-reverse es nach hinten. */
+.sub-text.pos-top { flex-direction: column; }
+.sub-text.pos-bottom { flex-direction: column-reverse; }
+.sub-text.pos-left { flex-direction: row; }
+.sub-text.pos-right { flex-direction: row-reverse; }
+
+.sub-text-media img,
+.sub-text-media .ph-img {
+  width: 100%;
+  display: block;
+  border-radius: 18px;
+}
+/* Platzhalter, falls (theoretisch) has-img ohne echtes Bild. */
+.sub-text-media .ph-img {
+  min-height: 220px;
+  background: linear-gradient(180deg, var(--bg-tint), rgba(216, 188, 138, 0.18));
+}
+
+/* Links/Rechts: Bildspalte hat feste Breite je Größe, Text füllt Rest. */
+.sub-text.pos-left .sub-text-media,
+.sub-text.pos-right .sub-text-media { flex: none; }
+.sub-text.pos-left.size-s .sub-text-media,
+.sub-text.pos-right.size-s .sub-text-media { width: 200px; }
+.sub-text.pos-left.size-m .sub-text-media,
+.sub-text.pos-right.size-m .sub-text-media { width: 320px; }
+.sub-text.pos-left.size-l .sub-text-media,
+.sub-text.pos-right.size-l .sub-text-media { width: 440px; }
+.sub-text.pos-left .sub-text-body,
+.sub-text.pos-right .sub-text-body { flex: 1; min-width: 0; }
+
+/* Oben/Unten: Bild über volle Spaltenbreite, Größe = max-Breite. */
+.sub-text.pos-top .sub-text-media,
+.sub-text.pos-bottom .sub-text-media { width: 100%; }
+.sub-text.pos-top.size-s .sub-text-media,
+.sub-text.pos-bottom.size-s .sub-text-media { max-width: 320px; }
+.sub-text.pos-top.size-m .sub-text-media,
+.sub-text.pos-bottom.size-m .sub-text-media { max-width: 520px; }
+.sub-text.pos-top.size-l .sub-text-media,
+.sub-text.pos-bottom.size-l .sub-text-media { max-width: 100%; }
+
+/* Mobil: links/rechts stapeln, damit nichts gequetscht wird. */
+@media (max-width: 640px) {
+  .sub-text.pos-left,
+  .sub-text.pos-right { flex-direction: column; }
+  .sub-text.pos-left .sub-text-media,
+  .sub-text.pos-right .sub-text-media { width: 100%; }
+}
+
+/* ============================================================
    Responsive
    ============================================================ */
 @media (max-width: 860px) {

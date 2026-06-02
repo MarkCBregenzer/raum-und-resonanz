@@ -18,10 +18,43 @@ import { MediaSlot } from "../MediaSlot";
 
 export function BlockView({ block }: { block: ContentBlock }) {
   if (block.type === "text") {
-    return (
-      <div className="reveal" style={{ marginBottom: 28 }}>
-        <h3 style={{ marginBottom: 8 }}>{block.heading}</h3>
+    // Textkörper — identisch, ob mit oder ohne Bild.
+    const bodyMarkup = (
+      <>
+        {block.heading && <h3 style={{ marginBottom: 8 }}>{block.heading}</h3>}
         <p style={{ whiteSpace: "pre-line" }}>{block.body}</p>
+      </>
+    );
+
+    // Ohne Bild: bisheriges Markup unverändert (kein Regress).
+    if (!block.image) {
+      return (
+        <div className="reveal" style={{ marginBottom: 28 }}>
+          {bodyMarkup}
+        </div>
+      );
+    }
+
+    // Mit Bild (#2/#3): Position/Größe steuert CSS über die Klassen.
+    // Defaults hier, falls die optionalen Felder (noch) fehlen.
+    const pos = block.imagePosition ?? "top";
+    const size = block.imageSize ?? "m";
+    return (
+      <div
+        className={`reveal sub-block sub-text has-img pos-${pos} size-${size}`}
+        style={{ marginBottom: 28 }}
+      >
+        {/* Media steht im Markup immer ZUERST; die sichtbare Position
+            (oben/unten/links/rechts) macht allein die Flex-Richtung im CSS.
+            Bewusst ein einfaches <img>: die Bilder sollen sich in ihrer
+            natürlichen Höhe der per CSS gesetzten Spaltenbreite anpassen
+            (18px Radius, kein Bogen) — anders als der arch-maskierte
+            MediaSlot mit fixem 4:5-Format. */}
+        <div className="sub-text-media">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={block.image} alt={block.heading || ""} />
+        </div>
+        <div className="sub-text-body">{bodyMarkup}</div>
       </div>
     );
   }

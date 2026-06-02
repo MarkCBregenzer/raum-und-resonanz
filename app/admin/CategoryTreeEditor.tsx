@@ -5,6 +5,8 @@ import type {
   Category,
   Subpage,
   ContentBlock,
+  ImagePosition,
+  ImageSize,
 } from "@/lib/default-content";
 
 /* CategoryTreeEditor — Slice 2b
@@ -235,7 +237,10 @@ export function CategoryTreeEditor({ categories, setContent }: Props) {
       const subs = [...cats[catIdx].children];
       const newBlock: ContentBlock =
         type === "text"
-          ? { type: "text", heading: "Neuer Abschnitt", body: "" }
+          ? // image:null explizit setzen, damit ein neuer Text-Block
+            // optisch wie bisher rendert (kein Bild) — Position/Größe
+            // bekommen erst beim Hinzufügen eines Bildes Bedeutung.
+            { type: "text", heading: "Neuer Abschnitt", body: "", image: null }
           : { type: "image", src: null, caption: "" };
       subs[subIdx] = {
         ...subs[subIdx],
@@ -409,6 +414,34 @@ export function CategoryTreeEditor({ categories, setContent }: Props) {
           display: flex; gap: 8px; flex-wrap: wrap;
         }
         .add-row .btn { padding: 8px 14px; font-size: 0.92rem; }
+
+        /* Segment-Steuerung (Bild-Position / -Größe). Stil lehnt sich
+           an die .icon-btn-Knöpfe an: ruhig, Gold-Akzent wenn aktiv. */
+        .seg-field { display: flex; flex-direction: column; gap: 6px; }
+        .seg-label {
+          font-size: 0.82rem;
+          letter-spacing: 0.04em;
+          color: #5E3370;
+          font-weight: 600;
+        }
+        .seg-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .seg {
+          padding: 6px 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(94, 51, 112, 0.2);
+          background: #fff;
+          color: #5E3370;
+          font-size: 0.88rem;
+          font-family: inherit;
+          cursor: pointer;
+          transition: background .15s, border-color .15s, color .15s;
+        }
+        .seg:hover:not(.active) { background: rgba(94, 51, 112, 0.08); }
+        .seg.active {
+          background: #5E3370;
+          border-color: #5E3370;
+          color: #fff;
+        }
       `}</style>
     </div>
   );
@@ -801,6 +834,58 @@ function BlockCard(props: BlockCardProps) {
               }
             />
           </Field>
+
+          {/* Feature #2/#3: optionales Bild im Text-Block.
+              URL-Feld (Upload folgt im Blob-Slice) — leer = kein Bild.
+              Position/Größe erscheinen erst, wenn ein Bild gesetzt ist. */}
+          <Field label="Bild im Textblock (URL, optional — z. B. /kathrin.png)">
+            <input
+              type="text"
+              value={block.image ?? ""}
+              placeholder="leer lassen für reinen Text"
+              onChange={(e) =>
+                props.onUpdateBlock(catIdx, subIdx, blockIdx, {
+                  image: e.target.value.trim() === "" ? null : e.target.value,
+                })
+              }
+            />
+          </Field>
+
+          {block.image && (
+            <>
+              {/* Position des Bildes relativ zum Text. */}
+              <Segmented<ImagePosition>
+                label="Bild-Position"
+                value={block.imagePosition ?? "top"}
+                options={[
+                  { value: "top", label: "Oben" },
+                  { value: "bottom", label: "Unten" },
+                  { value: "left", label: "Links" },
+                  { value: "right", label: "Rechts" },
+                ]}
+                onChange={(v) =>
+                  props.onUpdateBlock(catIdx, subIdx, blockIdx, {
+                    imagePosition: v,
+                  })
+                }
+              />
+              {/* Größe des Bildes (S/M/L). */}
+              <Segmented<ImageSize>
+                label="Bild-Größe"
+                value={block.imageSize ?? "m"}
+                options={[
+                  { value: "s", label: "S" },
+                  { value: "m", label: "M" },
+                  { value: "l", label: "L" },
+                ]}
+                onChange={(v) =>
+                  props.onUpdateBlock(catIdx, subIdx, blockIdx, {
+                    imageSize: v,
+                  })
+                }
+              />
+            </>
+          )}
         </>
       ) : (
         <>
@@ -848,5 +933,41 @@ function Field({
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+/* Segmentierte Auswahl — eine kleine Button-Gruppe, von der genau
+   ein Wert aktiv ist. Generisch über die Wert-Literale (z. B.
+   ImagePosition oder ImageSize), damit `onChange` typsicher genau
+   die erlaubten Strings liefert. Genutzt für Bild-Position/-Größe
+   im Text-Block (#2/#3). Styling unten im `.seg-*`-Block. */
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="seg-field">
+      <span className="seg-label">{label}</span>
+      <div className="seg-row" role="group" aria-label={label}>
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`seg${value === opt.value ? " active" : ""}`}
+            aria-pressed={value === opt.value}
+            onClick={() => onChange(opt.value)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

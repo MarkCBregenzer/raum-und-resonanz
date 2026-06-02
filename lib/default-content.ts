@@ -11,8 +11,26 @@
    Editor-Port später ein reiner Frontend-Umbau.
    ============================================================ */
 
+/* Position eines optionalen Bildes relativ zum Textkörper eines
+   Text-Blocks (Feature #2) und seine Größe (Feature #3). Eigene
+   Typen, damit Renderer und Editor dieselben Literale teilen. */
+export type ImagePosition = "top" | "bottom" | "left" | "right";
+export type ImageSize = "s" | "m" | "l";
+
 export type ContentBlock =
-  | { type: "text"; heading: string; body: string }
+  // Text-Block. Kann optional ein Bild tragen (#2/#3). Die Bild-Felder
+  // sind optional und abwärtskompatibel: fehlen sie (oder ist `image`
+  // null), rendert der Block exakt wie zuvor — reiner Text.
+  | {
+      type: "text";
+      heading: string;
+      body: string;
+      image?: string | null; // URL/Pfad; null/fehlt = kein Bild
+      imagePosition?: ImagePosition; // Default "top" (im Renderer)
+      imageSize?: ImageSize; // Default "m" (im Renderer)
+    }
+  // Eigenständiger Bild-Block (unverändert) — für reine Bilder mit
+  // Bildunterschrift, getrennt vom Text-mit-Bild-Fall oben.
   | { type: "image"; src: string | null; caption: string };
 
 export type Subpage = {
