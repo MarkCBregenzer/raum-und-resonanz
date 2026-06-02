@@ -60,19 +60,9 @@
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-/* ---- Mood: Geborgen (tief, umhüllend) ---- */
-[data-mood="geborgen"] {
-  --hero-bg-1: #4B275F;
-  --hero-bg-2: #3A1E50;
-  --hero-bg-3: #2C1640;
-  --hero-ink: #F7F1E9;
-  --hero-ink-soft: rgba(247, 241, 233, 0.78);
-  --hero-tagline: var(--gold-soft);
-  --hero-rule: var(--gold-soft);
-  --bokeh-a: rgba(216, 188, 138, 0.50);
-  --bokeh-b: rgba(255, 233, 196, 0.40);
-  --bokeh-c: rgba(178, 140, 200, 0.45);
-}
+/* Die Atmosphäre „Geborgen" (data-mood="geborgen") wurde mit dem
+   Design-Update vom 2026-05-29 entfernt — die Seite läuft fest in
+   der hellen Atmosphäre „Licht", die oben in :root definiert ist. */
 
 * { box-sizing: border-box; }
 
@@ -176,15 +166,6 @@ img { max-width: 100%; display: block; }
 .btn.ghost:hover {
   background: rgba(183, 141, 94, 0.1);
 }
-[data-mood="geborgen"] .hero .btn.ghost {
-  --b-ink: var(--gold-soft);
-  border-color: var(--gold-soft);
-}
-[data-mood="geborgen"] .hero .btn {
-  --b-bg: var(--gold);
-  --b-ink: #3a2410;
-  box-shadow: 0 14px 40px -14px rgba(216, 188, 138, 0.6);
-}
 
 /* ============================================================
    Reveal on scroll
@@ -280,67 +261,108 @@ img { max-width: 100%; display: block; }
 .nav-links a:hover { color: var(--violet); }
 .nav-links a:hover::after { transform: scaleX(1); }
 
+/* ---- Dropdown-Menü (Kategorien mit Unterseiten) ----
+   Slice 2: Aurachirurgie und Jin Shin Jyutsu haben Unterseiten.
+   Der Eintrag im Header bekommt ein kleines Aufklapp-Menü, das
+   per CSS auf Hover und Tastatur-Fokus erscheint (focus-within
+   macht das auch für Tab-Nutzer:innen zugänglich, ohne JS).
+   Auf Mobile (≤1024px) wird die Top-Navigation ohnehin
+   ausgeblendet — das Aufklapp-Menü betrifft nur Desktop. */
+.nav-links li.has-dropdown {
+  position: relative;
+}
+.nav-links li.has-dropdown > .nav-trigger {
+  /* Kleiner Pfeil als Hinweis, dass es Unterseiten gibt. */
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.nav-links li.has-dropdown > .nav-trigger::after {
+  /* Eigener Unterstrich (siehe nav-links a::after) bleibt durch
+     position:relative im <a> erhalten; der Pfeil ist separat. */
+}
+.nav-links li.has-dropdown > .nav-trigger .chev {
+  font-size: 0.7em;
+  opacity: 0.6;
+  transition: transform 0.3s var(--ease);
+}
+.nav-links li.has-dropdown:hover > .nav-trigger .chev,
+.nav-links li.has-dropdown:focus-within > .nav-trigger .chev {
+  transform: rotate(180deg);
+}
+.nav-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -16px;
+  min-width: 240px;
+  background: var(--bg);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 18px 40px rgba(70, 40, 90, 0.10);
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  /* Standardmäßig unsichtbar; per Hover/Focus-within wird's eingeblendet.
+     Sanftes Fade-In, damit es nicht aufpoppt. */
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+  z-index: 50;
+}
+.nav-links li.has-dropdown:hover > .nav-dropdown,
+.nav-links li.has-dropdown:focus-within > .nav-dropdown {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.nav-dropdown a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.98rem;
+  color: var(--ink);
+  white-space: normal;
+}
+.nav-dropdown a::after {
+  /* Unterstrich-Effekt aus nav-links a überschreiben — im Dropdown
+     stört die Linie eher als sie führt. */
+  display: none;
+}
+.nav-dropdown a:hover {
+  background: var(--bg-tint);
+  color: var(--violet);
+}
+
+/* Mobile-Menü: Kategorien mit Unterseiten als Gruppe darstellen.
+   Eltern ist groß, Kinder etwas kleiner und eingerückt. */
+.mobile-menu .nav-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.mobile-menu .nav-group .nav-group-children {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.mobile-menu .nav-group .nav-group-children a {
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+
 .nav-cta { display: inline-flex; }
 .nav-actions {
   display: flex;
   align-items: center;
   gap: clamp(12px, 1.6vw, 22px);
 }
-
-/* ---- Atmosphären-Schalter ---- */
-.mood-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(10px) saturate(150%);
-  -webkit-backdrop-filter: blur(10px) saturate(150%);
-}
-.mood-opt {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-family: var(--font-body);
-  font-size: 0.94rem;
-  letter-spacing: 0.03em;
-  color: var(--ink-soft);
-  white-space: nowrap;
-  transition: color 0.35s var(--ease), background 0.35s var(--ease),
-              box-shadow 0.35s var(--ease);
-}
-.mood-opt:hover { color: var(--violet); }
-.mood-opt.active {
-  color: #fff;
-  background: var(--violet);
-  box-shadow: 0 6px 16px -9px rgba(67, 35, 90, 0.65);
-}
-.mood-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  flex: none;
-}
-.mood-dot.licht {
-  background: var(--gold-soft);
-  box-shadow: 0 0 0 1px rgba(94, 51, 112, 0.18) inset;
-}
-.mood-dot.geborgen { background: var(--violet-deep); }
-.mood-opt.active .mood-dot {
-  background: var(--gold-soft);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
-}
-
-/* Schalter im Mobil-Menü: etwas größer, eigene Zeile */
-.mood-switch.in-menu { margin-block: 6px; }
-.mood-switch.in-menu .mood-opt { font-size: 1.12rem; padding: 9px 20px; }
-.mood-switch.in-menu .mood-dot { width: 10px; height: 10px; }
 
 .nav-toggle {
   display: none;
@@ -401,9 +423,9 @@ img { max-width: 100%; display: block; }
    Sektions-Container bleibt bei max-width 1160px (Lesbarkeit langer
    Fließtexte im Garamond — ca. 70–85 Zeichen/Zeile). Der Header
    ist ein Sonderfall: er muss horizontalen Platz für Logo + 5
-   Nav-Links + MoodToggle + Termin-Button stellen, was als Summe
-   ~1197px Inhaltsbreite braucht. Daher lassen wir nur den
-   Header-Container voll aufgehen und reduzieren das horizontale
+   Nav-Links + Termin-Button stellen — auf 13″-Laptops (1280px) ist
+   das ohne diesen Override gerade nicht drin. Daher lassen wir nur
+   den Header-Container voll aufgehen und reduzieren das horizontale
    Padding, damit nichts mehr aus dem Viewport rausragt — und
    gleichzeitig kein toter Rand entsteht, wenn das Browserfenster
    sehr breit ist. */
@@ -412,31 +434,12 @@ img { max-width: 100%; display: block; }
   padding-inline: clamp(16px, 2vw, 32px);
 }
 
-/* Header hat in beiden Stimmungen einen hellen Hintergrund (body-bg scheint
-   durch, weil der Hero erst unter dem Header startet) — daher überall die
-   dunkle Schrift wie im Modus „Licht". Frühere helle Schrift im Geborgen-
-   Modus war hell-auf-hell und schlecht lesbar; vom Designer:in entfernt. */
-
 /* ============================================================
    Logo / Monogramm
    ============================================================ */
-/* Logo strahlt auf dunklem Grund (Footer + Geborgen-Hero) */
+/* Logo strahlt auf dunklem Grund (nur noch Footer — die ehemalige
+   Geborgen-Hero-Variante wurde mit dem Atmosphären-Schalter entfernt). */
 .site-footer .logo .mark { filter: drop-shadow(0 2px 12px rgba(247, 241, 233, 0.38)); }
-.hero .mark-wrap { position: relative; }
-.hero .mark-wrap::before {
-  content: "";
-  position: absolute;
-  left: 50%; top: 50%;
-  width: clamp(280px, 30vw, 420px); height: clamp(280px, 30vw, 420px);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  z-index: -1;
-  opacity: 0;
-  background: radial-gradient(circle, rgba(247, 241, 233, 0.42), rgba(247, 241, 233, 0) 60%);
-  transition: opacity 0.7s var(--ease);
-  pointer-events: none;
-}
-[data-mood="geborgen"] .hero .mark-wrap::before { opacity: 1; }
 
 .logo { display: inline-flex; align-items: center; gap: 14px; }
 .logo .mark { display: block; flex: none; }

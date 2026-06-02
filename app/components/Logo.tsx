@@ -12,8 +12,13 @@ type LogoProps = {
 };
 
 export function Logo({ size = 46, withWord = false, sub = false, className = "" }: LogoProps) {
+  // Logo verlinkt jetzt auf „/" statt nur auf „#top". Slice 2 hat
+  // echte Unterseiten eingeführt — von dort soll ein Klick auf das
+  // Logo wieder zur Startseite zurückführen, nicht nur zum oberen
+  // Rand der aktuellen Seite. Auf der Startseite selbst scrollt
+  // der Browser bei einem Klick auf „/" automatisch nach oben.
   return (
-    <a href="#top" className={"logo " + className} aria-label="Raum & Resonanz — zur Startseite">
+    <a href="/" className={"logo " + className} aria-label="Raum & Resonanz — zur Startseite">
       <Mark size={size} />
       {withWord && (
         <span className="wordmark" style={{ fontSize: size * 0.62 }}>

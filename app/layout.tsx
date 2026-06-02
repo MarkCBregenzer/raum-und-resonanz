@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, EB_Garamond } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 // next/font lädt Google Fonts lokal — kein CDN-Roundtrip, keine FOUT.
@@ -32,8 +33,30 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de" className={`${cormorant.variable} ${ebGaramond.variable}`}>
-      <body>{children}</body>
+    // suppressHydrationWarning: site-gate.js fügt vor der Hydration die
+    // Klasse „rr-locked" zu <html> hinzu, damit der Body bis zur Eingabe
+    // des Passworts unsichtbar bleibt. Ohne diese Unterdrückung würde
+    // React beim Hydrieren einen Mismatch-Fehler werfen (Server-HTML
+    // hat die Klasse nicht, Client-DOM schon).
+    <html
+      lang="de"
+      className={`${cormorant.variable} ${ebGaramond.variable}`}
+      suppressHydrationWarning
+    >
+      <body>
+        {children}
+        {/* Zugangssperre (Vorschau-Phase) — Passwort-Gate vor Hydration.
+           strategy="beforeInteractive" injiziert das <script> direkt ins
+           server-gerenderte HTML, damit es vor jedem Next.js-Modul läuft
+           und der Inhalt per `html.rr-locked body{visibility:hidden}`
+           verborgen bleibt, bevor er aufblitzen kann. Muss im Root-Layout
+           liegen (Next.js-Vorgabe für beforeInteractive) — deckt damit
+           automatisch alle Routen ab (Startseite, Impressum, Datenschutz).
+           Hinweis: Das `<Script>` steht innerhalb von `<body>` (nicht direkt
+           in `<html>`), weil React 19 + Next 16 keine `<script>`-Kinder
+           direkt unter `<html>` mehr erlauben (Hydration-Fehler). */}
+        <Script src="/site-gate.js" strategy="beforeInteractive" />
+      </body>
     </html>
   );
 }
