@@ -1,10 +1,15 @@
 /* ============================================================
-   Schreibendpunkt für die Seiteninhalte.
+   Schreibendpunkt für den Entwurf der Seiteninhalte.
    ------------------------------------------------------------
-   POST /api/content     — überschreibt das Inhalts-Dokument.
-   GET  /api/content     — liefert das aktuelle Dokument (für
-                           den Editor; öffentliche Seiten holen
-                           es direkt über getContent()).
+   Draft/Publish-Modell: Diese Route arbeitet auf dem ENTWURF
+   (Key = "draft"). Die öffentliche Website bleibt davon unberührt,
+   bis „Veröffentlichen" (siehe /api/content/publish) den Entwurf in
+   den Key "content" kopiert.
+
+   POST /api/content     — speichert den Entwurf (Upsert auf "draft").
+   GET  /api/content     — liefert den Entwurf (für den Editor;
+                           öffentliche Seiten holen den veröffentlichten
+                           Stand direkt über getContent()).
 
    Schutz:
    - proxy.ts blockiert /api/content/* für nicht-eingeloggte
@@ -19,16 +24,15 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sql } from "@/lib/db";
-import { DEFAULT_CONTENT, type Content } from "@/lib/default-content";
+import { getDraft } from "@/lib/content";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const rows = (await sql`
-    SELECT value FROM content_kv WHERE key = 'content' LIMIT 1
-  `) as { value: Content }[];
-  const value = rows[0]?.value ?? DEFAULT_CONTENT;
+  // Editor lädt den Entwurf (mit Fallback auf den veröffentlichten Stand,
+  // falls noch kein Entwurf existiert — siehe getDraft()).
+  const value = await getDraft();
   return NextResponse.json(value);
 }
 
@@ -57,11 +61,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // Upsert auf den Entwurf: Beim ersten Speichern gibt es noch keine
+  // "draft"-Zeile (das Seed legt nur "content" an) — darum INSERT … ON
+  // CONFLICT statt eines reinen UPDATE.
   await sql`
-    UPDATE content_kv
-       SET value = ${JSON.stringify(body)}::jsonb,
-           updated_at = NOW()
-     WHERE key = 'content'
+    INSERT INTO content_kv (key, value, updated_at)
+    VALUES ('draft', ${JSON.stringify(body)}::jsonb, NOW())
+    ON CONFLICT (key) DO UPDATE
+      SET value = EXCLUDED.value,
+          updated_at = NOW()
   `;
 
   return NextResponse.json({ ok: true });

@@ -29,3 +29,28 @@ export async function getContent(): Promise<Content> {
 
   return rows[0].value;
 }
+
+/* getDraft — Arbeitsstand der Verwaltung (Key = "draft").
+   ------------------------------------------------------------
+   Draft/Publish-Modell (wie im Design-Bundle): Die Verwaltung
+   bearbeitet einen *Entwurf*, die öffentliche Website zeigt nur den
+   *veröffentlichten* Stand (Key = "content", via getContent()). Erst
+   ein Klick auf „Veröffentlichen" kopiert den Entwurf nach "content".
+
+   Existiert noch kein Entwurf (frische DB, vor der ersten Bearbeitung),
+   fallen wir auf den veröffentlichten Stand zurück — genau wie das
+   Bundle (`loadDraft() = draft || published`). Dadurch braucht das
+   Migrate/Seed KEINE eigene Draft-Zeile; der Entwurf entsteht erst
+   beim ersten Speichern. */
+export async function getDraft(): Promise<Content> {
+  const rows = (await sql`
+    SELECT value FROM content_kv WHERE key = 'draft' LIMIT 1
+  `) as { value: Content }[];
+
+  if (rows.length === 0) {
+    // Kein Entwurf vorhanden → veröffentlichten Stand verwenden.
+    return getContent();
+  }
+
+  return rows[0].value;
+}

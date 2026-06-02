@@ -33,19 +33,37 @@ import { CategoryTreeEditor } from "./CategoryTreeEditor";
    - Der Editor sendet bei jeder State-Änderung den vollen
      Inhaltsbaum. Das ist unbedenklich klein (~5 kB JSON). */
 
-type Props = { initialContent: Content; sessionUser: string };
+type Props = {
+  initialContent: Content; // Entwurf (Bearbeitungsstand)
+  initialPublished: Content; // veröffentlichter Stand (zum Vergleich)
+  sessionUser: string;
+};
 
 type Status =
   | { kind: "idle" }
   | { kind: "saving" }
   | { kind: "saved"; at: Date }
+  | { kind: "publishing" }
+  | { kind: "published"; at: Date }
   | { kind: "error"; message: string };
 
 type Home = Content["home"];
 
-export function AdminEditor({ initialContent, sessionUser }: Props) {
+export function AdminEditor({ initialContent, initialPublished, sessionUser }: Props) {
   const [content, setContent] = useState<Content>(initialContent);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  /* ---------- Draft/Publish ----------
+     `publishedContent` ist der zuletzt VERÖFFENTLICHTE Stand. Wir
+     vergleichen ihn mit dem aktuellen (Entwurfs-)`content`, um zu
+     zeigen, ob es noch nicht veröffentlichte Änderungen gibt. Der
+     Vergleich ist wertbasiert (JSON-Stringify), nicht zeitstempel-
+     basiert — robust gegenüber abweichenden updated_at-Zeiten. */
+  const [publishedContent, setPublishedContent] = useState<Content>(initialPublished);
+  const hasUnpublished =
+    JSON.stringify(content) !== JSON.stringify(publishedContent);
+  // Während Speichern/Veröffentlichen sind die Aktionsknöpfe gesperrt.
+  const busy = status.kind === "saving" || status.kind === "publishing";
 
   /* ---------- Live-Vorschau ----------
      iframeRef:    Referenz auf das eingebettete <iframe>.
@@ -193,6 +211,48 @@ export function AdminEditor({ initialContent, sessionUser }: Props) {
     }
   }
 
+  /* ---------- Veröffentlichen ----------
+     Macht den aktuellen Entwurf öffentlich. Zwei Schritte:
+     1. Entwurf speichern (POST /api/content) — stellt sicher, dass der
+        DB-Entwurf wirklich dem entspricht, was gerade im Editor steht
+        (auch wenn „Speichern" zwischendurch nicht geklickt wurde).
+     2. Veröffentlichen (POST /api/content/publish) — kopiert den
+        Entwurf nach "content"; erst danach sieht die Website es.
+     Danach setzen wir `publishedContent` = aktueller Content, sodass die
+     „Nicht veröffentlichte Änderungen"-Anzeige sofort auf „veröffentlicht"
+     springt. */
+  async function publish() {
+    setStatus({ kind: "publishing" });
+    try {
+      // 1) Entwurf sichern.
+      const saveRes = await fetch("/api/content", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(content),
+      });
+      if (!saveRes.ok) {
+        const err = await saveRes.json().catch(() => ({}));
+        setStatus({ kind: "error", message: err.error || `HTTP ${saveRes.status}` });
+        return;
+      }
+      // 2) Veröffentlichen.
+      const pubRes = await fetch("/api/content/publish", { method: "POST" });
+      if (!pubRes.ok) {
+        const err = await pubRes.json().catch(() => ({}));
+        setStatus({ kind: "error", message: err.error || `HTTP ${pubRes.status}` });
+        return;
+      }
+      // Veröffentlichter Stand entspricht jetzt dem aktuellen Content.
+      setPublishedContent(content);
+      setStatus({ kind: "published", at: new Date() });
+    } catch (e) {
+      setStatus({
+        kind: "error",
+        message: e instanceof Error ? e.message : "Netzwerkfehler",
+      });
+    }
+  }
+
   const hero = content.home.hero;
   const welcome = content.home.welcome;
   const methods = content.home.methods;
@@ -211,6 +271,8 @@ export function AdminEditor({ initialContent, sessionUser }: Props) {
         </div>
         <div className="actions">
           <StatusPill status={status} />
+          {/* Zeigt, ob der Entwurf vom veröffentlichten Stand abweicht. */}
+          <PublishPill hasUnpublished={hasUnpublished} />
           <button
             onClick={() => setPreviewOpen((v) => !v)}
             className="btn ghost"
@@ -221,10 +283,25 @@ export function AdminEditor({ initialContent, sessionUser }: Props) {
           </button>
           <button
             onClick={save}
-            className="btn primary"
-            disabled={status.kind === "saving"}
+            className="btn ghost"
+            disabled={busy}
+            title="Entwurf speichern (noch nicht öffentlich)"
           >
             {status.kind === "saving" ? "Speichern…" : "Speichern"}
+          </button>
+          {/* Veröffentlichen ist die eigentliche „live schalten"-Aktion.
+              Deaktiviert, wenn es nichts Unveröffentlichtes gibt. */}
+          <button
+            onClick={publish}
+            className="btn primary"
+            disabled={busy || !hasUnpublished}
+            title={
+              hasUnpublished
+                ? "Entwurf auf der Website veröffentlichen"
+                : "Keine unveröffentlichten Änderungen"
+            }
+          >
+            {status.kind === "publishing" ? "Veröffentliche…" : "Veröffentlichen"}
           </button>
           <button
             onClick={() => signOut({ callbackUrl: "/admin/login" })}
@@ -521,13 +598,17 @@ export function AdminEditor({ initialContent, sessionUser }: Props) {
       </section>
 
           <div className="footer-actions">
-            <button
-              onClick={save}
-              className="btn primary"
-              disabled={status.kind === "saving"}
-            >
+            <button onClick={save} className="btn ghost" disabled={busy}>
               {status.kind === "saving" ? "Speichern…" : "Speichern"}
             </button>
+            <button
+              onClick={publish}
+              className="btn primary"
+              disabled={busy || !hasUnpublished}
+            >
+              {status.kind === "publishing" ? "Veröffentliche…" : "Veröffentlichen"}
+            </button>
+            <PublishPill hasUnpublished={hasUnpublished} />
             <StatusPill status={status} />
           </div>
         </div>
@@ -747,9 +828,15 @@ function StatusPill({ status }: { status: Status }) {
   let text = "";
   let color = "#6A5A72";
   if (status.kind === "saving") text = "Speichern…";
+  else if (status.kind === "publishing") text = "Veröffentliche…";
   else if (status.kind === "saved") {
     text =
       "Gespeichert · " +
+      status.at.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    color = "#3F7A4E";
+  } else if (status.kind === "published") {
+    text =
+      "Veröffentlicht · " +
       status.at.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
     color = "#3F7A4E";
   } else {
@@ -757,4 +844,30 @@ function StatusPill({ status }: { status: Status }) {
     color = "#A03A3A";
   }
   return <span style={{ color, fontSize: "0.94rem", marginRight: 6 }}>{text}</span>;
+}
+
+/* PublishPill — Daueranzeige des Veröffentlichungs-Status.
+   Anders als StatusPill (kurzlebige Aktions-Rückmeldung) zeigt diese
+   Anzeige permanent, ob der Entwurf vom veröffentlichten Stand abweicht.
+   So sieht Kathrin jederzeit, ob ihre Änderungen schon live sind. */
+function PublishPill({ hasUnpublished }: { hasUnpublished: boolean }) {
+  if (hasUnpublished) {
+    return (
+      <span
+        style={{
+          color: "#9C7544", // Gold-deep: „Achtung, noch nicht live"
+          fontSize: "0.94rem",
+          marginRight: 6,
+          fontWeight: 600,
+        }}
+      >
+        ● Nicht veröffentlichte Änderungen
+      </span>
+    );
+  }
+  return (
+    <span style={{ color: "#3F7A4E", fontSize: "0.94rem", marginRight: 6 }}>
+      ● Veröffentlicht
+    </span>
+  );
 }
