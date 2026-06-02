@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Playwright MCP local session artifacts (screenshots, console logs)
 /.playwright-mcp/
+
+# Lokale Scratch-Screenshots aus Smoke-Tests im Repo-Root
+# (z. B. final-home.png — Playwright-Capture, gehört nicht ins Repo)
+/*.png

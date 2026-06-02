@@ -1,81 +1,92 @@
 # Continue here — Raum & Resonanz CMS build
 
-This file is a handoff to a future session (likely after `/compact`). The full picture lives in `~/.claude/projects/-Users-markbregenzer-…/memory/` — start by reading those, especially `project-raum-resonanz-cms.md`. This file is the short version.
+Handoff-Datei für die nächste Session (oft nach `/compact`). Das volle Bild liegt in `~/.claude/projects/-Users-markbregenzer-…/memory/` — vor allem `project-raum-resonanz-cms.md`. Hier nur die Kurzfassung.
 
-## Where we are
+## Wo wir stehen (Stand 2026-06-02)
 
-Slice 1b is done. End-to-end CMS loop works:
+Vier Slices live und manuell verifiziert. End-to-end Loop steht:
 
-- DB lives in Neon (single `content_kv` table, one JSONB row, key='content').
-- `/` is now an async server component reading from DB.
-- `/admin` is auth-guarded (NextAuth v4 + bcrypt + JWT cookie via `proxy.ts`).
-- Editor at `/admin` writes via POST `/api/content`.
-- Only ONE field is wired end-to-end so far: `home.hero.heading`. The full content tree exists in the DB; the editor just doesn't expose the other fields yet.
+- **Slice 1 — Infrastruktur:** Neon-DB (`content_kv`, eine JSONB-Zeile), NextAuth v4 + bcrypt + JWT-Cookie via `proxy.ts`, Site-Gate per Cookie + `public/site-gate.js`.
+- **Slice 1b — erstes Feld:** `home.hero.heading` end-to-end editierbar.
+- **Slice 2a — Home-Felder verbreitert:** Subtitle, Methodenkarten, Welcome-Absätze, About-Absätze, Calm-Quote, Kontakt — alle im Editor.
+- **Slice 2b — Kategorien & Unterseiten:** Header-Dropdowns, `/[category]` Übersicht, `/[category]/[slug]` Detailseite. `params` ist in Next 16 ein `Promise<…>` — wird in beiden Routen `await`ed.
+- **Slice 2c — Admin-Editor erweitert:** Kategorie-Baum-Editor mit Inline-Unterseiten-Liste, Add/Remove/Reorder.
+- **Slice 2d — Live-Preview Iframe:** `app/admin/preview/PreviewClient.tsx` rendert Content per postMessage, neu ge­zeichnet bei jeder Eingabe.
+- **Slice 2e — Iframe-Navigation (heute):** Klicks im Preview-Iframe werden via `onClickCapture` abgefangen, SPA-Routing per React-State (`pathname`/`hash`/`navTick`). Cross-Route-Hashes (`/#kontakt` von Unterseite) scrollen sauber. Identischer Anker zweimal klicken → re-scrollt dank monotonem `navTick`-Counter. Sticky-Path-Hint oben im Iframe zeigt virtuelle URL + Home-Button.
 
-Mark stopped here to manually check the build before continuing.
+Heutiger Commit: `87e69c2 — Build Raum & Resonanz CMS (Neon + NextAuth + iframe live preview)`.
 
-## What to do next
+## Was als nächstes ansteht
 
-Mark will pick from these three slices when he returns. Don't start any of them unprompted:
+Mark wählt beim nächsten Mal. Nichts unaufgefordert starten:
 
-1. **Widen home text fields** (recommended, ~30 min). Add inputs in `app/admin/AdminEditor.tsx` for subtitle, methods labels + lead, welcome paragraphs, about paragraphs, calm quote, contact info. Then wire them in `app/components/Sections.tsx` (currently only `Hero` takes a prop). No new infra.
-2. **Category routes** (medium). Build `app/[category]/page.tsx` overview + `app/[category]/[slug]/page.tsx` subpage. Update `SiteHeader` with dropdown nav driven by `content.categories`. Methods cards on home link to `/[category]` instead of `#kontakt`. Dynamic routes in Next 16: `params` is now `Promise<{...}>`, must `await`.
-3. **Image upload via Vercel Blob** (small after Mark provisions the token). Add `BLOB_READ_WRITE_TOKEN` to env. Add a route handler that takes a multipart upload, pushes to Blob, returns the URL. Wire image inputs in admin editor.
+1. **Slice 3 — Bild-Upload via Vercel Blob.** Braucht `BLOB_READ_WRITE_TOKEN` in `.env.local`. Route-Handler nimmt Multipart-Upload, schiebt nach Blob, gibt URL zurück. Image-Inputs in `AdminEditor` + `CategoryTreeEditor` werden mit dem Endpoint verdrahtet. Aktuell sind Bildquellen `string | null`-Pfade — `MediaSlot` zeigt Platzhalter bei `null`.
+2. **View-Extraktion (Refactor, ~30 Min).** `CategoryView`/`SubpageView`/`BlockView`/`romanNumeral` aus `PreviewClient.tsx` nach `app/components/views/` heben, mit injizierbarer Link-Komponente. Wird aktuell zwischen `app/[category]/…` und der Preview dupliziert. `/simplify` Altitude-Agent hat das angemerkt; Author-Kommentar bei `PreviewClient.tsx:300` markiert es als bewusst aufgeschoben.
+3. **Deploy auf Vercel.** Projekt anlegen, gleiche Env-Vars setzen (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` auf Prod-URL, `ADMIN_USER`, `ADMIN_PASS_HASH_B64`). Migrate per CLI oder `postbuild`. Chat2-Versprechen hält, weil `migrate.mjs` `ON CONFLICT DO NOTHING` nutzt.
 
-After all three: port the bundle's live-preview iframe (`editor-render.js` + postMessage). Last and trickiest.
-
-## Manual verification commands
+## Manuelle Verifikation
 
 ```bash
-# DB connection + idempotent migrate (safe to run anytime, won't overwrite content)
+# DB-Migration (idempotent, überschreibt keinen Content)
 node --env-file=.env.local scripts/migrate.mjs
 
-# Quick smoke test (changes heading directly in DB)
+# Smoke-Test (schreibt Heading direkt in DB)
 node --env-file=.env.local scripts/smoke-set-heading.mjs "Some test heading"
-# then reload http://localhost:3000/ and check the hero.
+# dann http://localhost:3000/ neu laden, Hero prüfen.
 
-# Dev server (reads .env.local automatically)
+# Dev-Server
 npm run dev
 
-# Type check
+# Type-Check
 npx tsc --noEmit
 ```
 
-## Login (preview phase only — both gates use the same password)
+Admin: `http://localhost:3000/admin/login` → User `kathrin`, PW `IchLiebeHockey:-D`.
+Site-Gate (alle Routen): PW `IchLiebeHockey:-D`.
+Beide Passwörter sind während der Preview-Phase identisch — bewusst.
 
-- Site-gate (covers all routes): `IchLiebeHockey:-D`
-- Admin login at `/admin/login`: user `kathrin`, password `IchLiebeHockey:-D`
+## Env-Var-Falle (in Stein meißeln)
 
-## Env var gotcha (worth burning in)
+Next 16's Env-Loader expandiert `$VAR` in `.env.local`-Werten — auch in single quotes. Bcrypt-Hashes beginnen mit `$2b$12$…` und werden still abgeschnitten. Workaround: Hash base64-encodieren, als `ADMIN_PASS_HASH_B64` ablegen, zur Laufzeit dekodieren. Siehe Kommentar-Block in `lib/auth.ts`. Memory: `feedback-next16-env-dollar-expansion`.
 
-Next 16's env loader expands `$VAR` in `.env.local` values, even inside single quotes. Bcrypt hashes start with `$2b$12$…` and silently truncate. Workaround: store the hash base64-encoded as `ADMIN_PASS_HASH_B64`, decode at runtime. See `lib/auth.ts` comment block.
+## Dateien aus diesem Build (kein Design-Bundle)
 
-## Files added this build (not from any design bundle)
+Server/Infra:
 
 - `lib/db.ts`, `lib/content.ts`, `lib/default-content.ts`, `lib/auth.ts`
 - `proxy.ts`
 - `app/api/auth/[...nextauth]/route.ts`, `app/api/content/route.ts`
-- `app/admin/page.tsx`, `app/admin/login/page.tsx`, `app/admin/AdminEditor.tsx`
-- `app/components/RevealOnScroll.tsx` (split out of `app/page.tsx`)
 - `scripts/migrate.mjs`, `scripts/smoke-set-heading.mjs`
 - `.env.local` (gitignored)
-- This file (`CONTINUE.md`)
 
-## Files modified this build
+Public-Routen:
 
-- `app/page.tsx` — now async server component, fetches content
-- `app/components/Sections.tsx` — `Hero` takes `heading` prop
+- `app/[category]/page.tsx` — Kategorie-Übersicht (server)
+- `app/[category]/[slug]/page.tsx` — Unterseite (server)
 
-## Don't regress these (from earlier sessions)
+Admin:
 
-- `app/globals.css` has a `.site-header .container` full-width override around line ~400. Keep it.
-- `app/layout.tsx` has `<Script src="/site-gate.js" strategy="beforeInteractive" />` and `suppressHydrationWarning` on `<html>`. Both required for the password gate.
-- `app/components/SiteHeader.tsx` has no MoodToggle. The Geborgen ambiance was deliberately removed in an earlier marketing-bundle update. Don't re-add it.
+- `app/admin/page.tsx`, `app/admin/login/page.tsx`
+- `app/admin/AdminEditor.tsx` — Editor-Hülle, postMessage an Iframe
+- `app/admin/CategoryTreeEditor.tsx` — Kategorie-Baum
+- `app/admin/preview/page.tsx` — Server-Wrapper, Session-Check
+- `app/admin/preview/PreviewClient.tsx` — Live-Render + Iframe-Nav
 
-## Deployment readiness (not done — Mark hasn't asked yet)
+Geteilt:
 
-When Mark wants to deploy to Vercel:
-1. He provisions a Vercel project linked to GitHub (or uses Vercel CLI).
-2. Copy the same env vars from `.env.local` into Vercel project settings — `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (set to production URL), `ADMIN_USER`, `ADMIN_PASS_HASH_B64`.
-3. Migrate runs once on first deploy — add to `package.json` as `postbuild` if we want auto-run, or run manually via Vercel CLI.
-4. Chat2 promise: content survives deploys because migrate uses `ON CONFLICT DO NOTHING`. Tested locally.
+- `app/components/RevealOnScroll.tsx` — IO-Observer (raus aus `page.tsx`, damit der Server-Component bleiben kann)
+
+## Nicht rückbauen (aus vorigen Sessions)
+
+- `app/globals.css` Zeile ~400: `.site-header .container` Full-Width-Override. Bleibt.
+- `app/layout.tsx`: `<Script src="/site-gate.js" strategy="beforeInteractive" />` + `suppressHydrationWarning` auf `<html>`. Beides nötig für die Passwort-Gate.
+- `app/components/SiteHeader.tsx` hat keinen MoodToggle. Geborgen-Atmosphäre wurde bewusst entfernt — nicht zurückholen.
+- `PreviewClient.tsx` dupliziert Views aus `app/[category]/…` absichtlich (deferred refactor, siehe oben). Kein "DRY-Up" als Drive-by.
+
+## Deployment-Bereitschaft (offen — Mark hat noch nicht gefragt)
+
+Wenn Mark auf Vercel will:
+1. Vercel-Projekt mit GitHub verbinden (oder CLI).
+2. Gleiche Env-Vars wie in `.env.local` setzen — `NEXTAUTH_URL` auf Produktions-URL umstellen.
+3. Migrate einmalig auf erstem Deploy laufen lassen — manuell via Vercel-CLI, oder als `postbuild`-Script verdrahten.
+4. Content überlebt Deploys, weil `migrate.mjs` `ON CONFLICT DO NOTHING` nutzt (lokal bestätigt).
