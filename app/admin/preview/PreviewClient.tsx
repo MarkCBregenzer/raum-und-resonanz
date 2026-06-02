@@ -1,15 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type {
-  Content,
-  Category,
-  Subpage,
-  ContentBlock,
-} from "@/lib/default-content";
+import type { Content, Category, Subpage } from "@/lib/default-content";
 import { SiteHeader } from "../../components/SiteHeader";
 import { SiteFooter } from "../../components/SiteFooter";
-import { MediaSlot } from "../../components/MediaSlot";
 import {
   Hero,
   WelcomeSection,
@@ -18,6 +12,8 @@ import {
   CalmSection,
   ContactSection,
 } from "../../components/Sections";
+import { CategoryView } from "../../components/views/CategoryView";
+import { SubpageView } from "../../components/views/SubpageView";
 
 /* PreviewClient — Live-Vorschau im Editor-Iframe
    ------------------------------------------------------------
@@ -312,12 +308,19 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
 }
 
 /* ---------- Ansichten ----------
-   Jede Ansicht ist eine kleine Funktion, die das Markup der
-   öffentlichen Seite spiegelt. Bewusst inline, ohne separate
-   Dateien, damit die Vorschau einen klaren Single-File-Scope
-   hat. Wenn das später unübersichtlich wird, lassen sich die
-   Views in `app/components/views/` extrahieren und sowohl von
-   den echten Routen als auch von der Vorschau wiederverwenden.
+   `HomeView` lebt weiter in dieser Datei, weil sie die Hauptseite
+   aus mehreren Section-Komponenten zusammensetzt — kein Code-
+   Duplikat zur öffentlichen Route (dort werden dieselben Sections
+   direkt verwendet).
+
+   `CategoryView`, `SubpageView` und `BlockView` sind in
+   `app/components/views/` extrahiert. Sie werden von den echten
+   Routen UND von dieser Vorschau wiederverwendet. Die Vorschau
+   reicht keine Link-Komponente rein und nimmt damit den Default-
+   Anchor — wichtig, weil der äußere `onClickCapture` jeden Klick
+   abfängt und in React-State umsetzt (sonst würde `next/link`
+   eine echte Navigation auslösen und die postMessage-Brücke
+   verlieren).
    ============================================================ */
 
 function HomeView({ content }: { content: Content }) {
@@ -331,118 +334,6 @@ function HomeView({ content }: { content: Content }) {
       <CalmSection data={home.calm} />
       <ContactSection data={home.contact} />
     </>
-  );
-}
-
-/* CategoryView — spiegelt /[category]/page.tsx.
-   Wir verzichten auf RevealOnScroll (siehe Kommentar oben). */
-function CategoryView({ cat }: { cat: Category }) {
-  return (
-    <section className="section" id="top">
-      <div className="container">
-        <div className="section-head center reveal">
-          <p className="eyebrow">Methode</p>
-          <h1>{cat.title}</h1>
-          <p className="lead">
-            Eine Übersicht der Themen — wähle, was dich gerade anspricht.
-          </p>
-          <hr className="rule center" />
-        </div>
-
-        <div className="methods-grid">
-          {cat.children.map((sub, i) => (
-            <article className="method-card reveal" key={sub.id}>
-              <span className="num">{romanNumeral(i + 1)}</span>
-              <h3>{sub.navLabel}</h3>
-              <p>{sub.teaser}</p>
-              {/* Plain <a> statt next/link, damit der einheitliche
-                  Klick-Interceptor greift (Link würde clientseitig
-                  router.push aufrufen und das postMessage-Setup
-                  durcheinanderbringen). */}
-              <a href={`/${cat.slug}/${sub.slug}`} className="more">
-                Mehr erfahren{" "}
-                <span className="arrow" aria-hidden="true">
-                  →
-                </span>
-              </a>
-            </article>
-          ))}
-        </div>
-
-        {cat.children.length === 0 && (
-          <p className="lead" style={{ textAlign: "center", marginTop: 24 }}>
-            Hier entstehen gerade Inhalte. Komm bald wieder vorbei.
-          </p>
-        )}
-
-        <div style={{ marginTop: 48 }} className="reveal">
-          <MediaSlot placeholder="Stimmungsbild zur Methode" />
-        </div>
-
-        <p style={{ marginTop: 32, textAlign: "center" }}>
-          <a href="/#methoden" className="more">
-            ← Zurück zur Übersicht
-          </a>
-        </p>
-      </div>
-    </section>
-  );
-}
-
-/* SubpageView — spiegelt /[category]/[slug]/page.tsx. */
-function SubpageView({ cat, sub }: { cat: Category; sub: Subpage }) {
-  return (
-    <section className="section" id="top">
-      <div className="container" style={{ maxWidth: 760 }}>
-        <div className="reveal" style={{ marginBottom: 16 }}>
-          <a href={`/${cat.slug}`} className="more">
-            ← {cat.title}
-          </a>
-        </div>
-
-        <p className="eyebrow reveal">{cat.title}</p>
-        <h1 className="reveal">{sub.title}</h1>
-        <p className="lead reveal" style={{ marginTop: 8 }}>
-          {sub.intro}
-        </p>
-
-        <hr className="rule" style={{ margin: "32px 0" }} />
-
-        {sub.blocks.map((block, i) => (
-          <BlockView key={i} block={block} />
-        ))}
-
-        <p style={{ marginTop: 48, textAlign: "center" }} className="reveal">
-          <a href={`/${cat.slug}`} className="more">
-            ← Zurück zur Übersicht „{cat.title}"
-          </a>
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function BlockView({ block }: { block: ContentBlock }) {
-  if (block.type === "text") {
-    return (
-      <div className="reveal" style={{ marginBottom: 28 }}>
-        <h3 style={{ marginBottom: 8 }}>{block.heading}</h3>
-        <p style={{ whiteSpace: "pre-line" }}>{block.body}</p>
-      </div>
-    );
-  }
-  return (
-    <figure className="reveal" style={{ margin: "24px 0" }}>
-      <MediaSlot src={block.src ?? undefined} alt={block.caption} />
-      {block.caption && (
-        <figcaption
-          className="eyebrow"
-          style={{ marginTop: 12, textAlign: "center" }}
-        >
-          {block.caption}
-        </figcaption>
-      )}
-    </figure>
   );
 }
 
@@ -471,13 +362,4 @@ function NotFoundView({ pathname }: { pathname: string }) {
       </p>
     </div>
   );
-}
-
-/* Kleine Helferfunktion: 1 → I, 2 → II, … bis V.
-   Identisch zur Funktion in /[category]/page.tsx, hier dupliziert,
-   damit dieser File self-contained bleibt. Die Lookup-Tabelle liegt
-   auf Modul-Ebene, damit sie nicht pro Render neu angelegt wird. */
-const ROMAN = ["I", "II", "III", "IV", "V"] as const;
-function romanNumeral(n: number): string {
-  return ROMAN[n - 1] ?? String(n);
 }

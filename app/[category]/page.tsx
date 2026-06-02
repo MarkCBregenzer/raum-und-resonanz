@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { RevealOnScroll } from "../components/RevealOnScroll";
-import { MediaSlot } from "../components/MediaSlot";
+import { CategoryView } from "../components/views/CategoryView";
 import { getContent } from "@/lib/content";
 
 /* Kategorie-Übersicht — /[category]
@@ -18,6 +18,13 @@ import { getContent } from "@/lib/content";
      werden. Frühere Next-Versionen lieferten ein Plain Object.
    - `notFound()` aus next/navigation rendert die nearest
      not-found.tsx (hier: Next-Default 404).
+
+   Hinweis (Refactor):
+   Das eigentliche Markup lebt in `CategoryView` — dieselbe
+   Komponente wird auch von der Live-Vorschau im Admin
+   genutzt. Wir reichen `next/link` als Link-Komponente rein,
+   damit clientseitiges Routing erhalten bleibt; die Vorschau
+   nutzt den Default-Anchor.
    ============================================================ */
 
 type Params = { category: string };
@@ -55,70 +62,10 @@ export default async function CategoryPage({
     <div data-bokeh="on">
       <SiteHeader categories={content.categories} />
       <main>
-        {/* Kopf-Sektion: Eyebrow + Titel + kurzer Hinweis */}
-        <section className="section" id="top">
-          <div className="container">
-            <div className="section-head center reveal">
-              <p className="eyebrow">Methode</p>
-              <h1>{cat.title}</h1>
-              <p className="lead">
-                Eine Übersicht der Themen — wähle, was dich gerade anspricht.
-              </p>
-              <hr className="rule center" />
-            </div>
-
-            {/* Karten-Raster, dieselben Klassen wie die Methoden-Karten
-                auf der Startseite, damit die Optik konsistent bleibt. */}
-            <div className="methods-grid">
-              {cat.children.map((sub, i) => (
-                <article className="method-card reveal" key={sub.id}>
-                  <span className="num">{romanNumeral(i + 1)}</span>
-                  <h3>{sub.navLabel}</h3>
-                  <p>{sub.teaser}</p>
-                  <Link href={`/${cat.slug}/${sub.slug}`} className="more">
-                    Mehr erfahren{" "}
-                    <span className="arrow" aria-hidden="true">
-                      →
-                    </span>
-                  </Link>
-                </article>
-              ))}
-            </div>
-
-            {/* Wenn (noch) keine Unterseite gepflegt ist, freundlicher Hinweis. */}
-            {cat.children.length === 0 && (
-              <p className="lead" style={{ textAlign: "center", marginTop: 24 }}>
-                Hier entstehen gerade Inhalte. Komm bald wieder vorbei.
-              </p>
-            )}
-
-            {/* Optionales Stimmungsbild als Trenner — nutzt den vorhandenen
-                MediaSlot-Platzhalter. Sobald Bilder hochladbar sind (Slice 3),
-                kann hier ein echtes Kategoriebild stehen. */}
-            <div style={{ marginTop: 48 }} className="reveal">
-              <MediaSlot placeholder="Stimmungsbild zur Methode" />
-            </div>
-
-            <p style={{ marginTop: 32, textAlign: "center" }}>
-              <Link href="/#methoden" className="more">
-                ← Zurück zur Übersicht
-              </Link>
-            </p>
-          </div>
-        </section>
+        <CategoryView cat={cat} Link={Link} />
       </main>
       <SiteFooter />
       <RevealOnScroll />
     </div>
   );
-}
-
-/* Kleine Helferfunktion: 1 → I, 2 → II, … bis V.
-   Mehr Karten als V haben wir bei diesem Projekt vermutlich nie;
-   alles darüber fällt auf die arabische Zahl zurück. So bleibt die
-   Optik mit den Methodenkarten auf der Startseite konsistent
-   (dort sind die Nummern hart kodiert „I", „II"). */
-function romanNumeral(n: number): string {
-  const map = ["I", "II", "III", "IV", "V"];
-  return map[n - 1] ?? String(n);
 }

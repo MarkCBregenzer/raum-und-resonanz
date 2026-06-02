@@ -21,18 +21,14 @@ Heutiger Commit: `87e69c2 — Build Raum & Resonanz CMS (Neon + NextAuth + ifram
 Mark wählt beim nächsten Mal. Nichts unaufgefordert starten:
 
 1. **Slice 3 — Bild-Upload via Vercel Blob.** Braucht `BLOB_READ_WRITE_TOKEN` in `.env.local`. Route-Handler nimmt Multipart-Upload, schiebt nach Blob, gibt URL zurück. Image-Inputs in `AdminEditor` + `CategoryTreeEditor` werden mit dem Endpoint verdrahtet. Aktuell sind Bildquellen `string | null`-Pfade — `MediaSlot` zeigt Platzhalter bei `null`.
-2. **View-Extraktion (Refactor, ~30 Min).** `CategoryView`/`SubpageView`/`BlockView`/`romanNumeral` aus `PreviewClient.tsx` nach `app/components/views/` heben, mit injizierbarer Link-Komponente. Wird aktuell zwischen `app/[category]/…` und der Preview dupliziert. `/simplify` Altitude-Agent hat das angemerkt; Author-Kommentar bei `PreviewClient.tsx:300` markiert es als bewusst aufgeschoben.
-3. **Deploy auf Vercel.** Projekt anlegen, gleiche Env-Vars setzen (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` auf Prod-URL, `ADMIN_USER`, `ADMIN_PASS_HASH_B64`). Migrate per CLI oder `postbuild`. Chat2-Versprechen hält, weil `migrate.mjs` `ON CONFLICT DO NOTHING` nutzt.
+2. **Deploy auf Vercel.** Projekt anlegen, gleiche Env-Vars setzen (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` auf Prod-URL, `ADMIN_USER`, `ADMIN_PASS_HASH_B64`). Migrate per CLI oder `postbuild`. Chat2-Versprechen hält, weil `migrate.mjs` `ON CONFLICT DO NOTHING` nutzt.
+3. **Admin-Editor strukturieren** (Mark, 2026-06-02): Linkes Editor-Pane ist aktuell flach. IA wird in Claude Design neu gestaltet (Update von `admin.html`-Prototyp), danach hier nachziehen.
 
 ## Manuelle Verifikation
 
 ```bash
 # DB-Migration (idempotent, überschreibt keinen Content)
 node --env-file=.env.local scripts/migrate.mjs
-
-# Smoke-Test (schreibt Heading direkt in DB)
-node --env-file=.env.local scripts/smoke-set-heading.mjs "Some test heading"
-# dann http://localhost:3000/ neu laden, Hero prüfen.
 
 # Dev-Server
 npm run dev
@@ -56,7 +52,7 @@ Server/Infra:
 - `lib/db.ts`, `lib/content.ts`, `lib/default-content.ts`, `lib/auth.ts`
 - `proxy.ts`
 - `app/api/auth/[...nextauth]/route.ts`, `app/api/content/route.ts`
-- `scripts/migrate.mjs`, `scripts/smoke-set-heading.mjs`
+- `scripts/migrate.mjs`
 - `.env.local` (gitignored)
 
 Public-Routen:
@@ -75,13 +71,17 @@ Admin:
 Geteilt:
 
 - `app/components/RevealOnScroll.tsx` — IO-Observer (raus aus `page.tsx`, damit der Server-Component bleiben kann)
+- `app/components/views/CategoryView.tsx` — Kategorie-Übersicht, Link per Prop injizierbar
+- `app/components/views/SubpageView.tsx` — Unterseite, Link per Prop injizierbar
+- `app/components/views/BlockView.tsx` — Block-Renderer (text + image)
+- `app/components/views/roman.ts` — `romanNumeral`-Helfer
 
 ## Nicht rückbauen (aus vorigen Sessions)
 
 - `app/globals.css` Zeile ~400: `.site-header .container` Full-Width-Override. Bleibt.
 - `app/layout.tsx`: `<Script src="/site-gate.js" strategy="beforeInteractive" />` + `suppressHydrationWarning` auf `<html>`. Beides nötig für die Passwort-Gate.
 - `app/components/SiteHeader.tsx` hat keinen MoodToggle. Geborgen-Atmosphäre wurde bewusst entfernt — nicht zurückholen.
-- `PreviewClient.tsx` dupliziert Views aus `app/[category]/…` absichtlich (deferred refactor, siehe oben). Kein "DRY-Up" als Drive-by.
+- `PreviewClient.tsx` und die öffentlichen Routen teilen sich jetzt die View-Module unter `app/components/views/`. Link-Komponente wird per Prop injiziert — Public-Route reicht `next/link` rein, Preview lässt den Default-Anchor, damit der iframe-Klick-Interceptor greift. Nicht „aufräumen" zurück in einen einzigen Link-Stil.
 
 ## Deployment-Bereitschaft (offen — Mark hat noch nicht gefragt)
 
