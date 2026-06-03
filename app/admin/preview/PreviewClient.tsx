@@ -72,6 +72,19 @@ import {
 
 const MSG_TYPE = "rr-preview" as const;
 
+/* Aktivierungslinie des Scroll-Spy — EINE Zahl, die zwei Dinge koppelt:
+   (1) wohin ein Klick-Sprung scrollt: die Oberkante des Ziels landet genau
+       auf dieser Höhe, und
+   (2) ab welcher Höhe der Spy ein Ziel als „aktiv" zählt.
+   Beide MÜSSEN identisch sein. Sonst läge ein gerade angesprungenes Ziel
+   knapp neben der Linie, und der Spy würde sofort den Nachbarn als aktiv
+   melden (der „Klau", den wir früher mit Timer/Hold abfangen mussten — mit
+   gemeinsamer Linie verschwindet er strukturell). ~110px = knapp unter der
+   klebrigen Kopfzeile der Vorschau (Header 72px, Pfad-Leiste 37px). Größer
+   = Sektion wird früher aktiv (weiter oben), kleiner = später. Eine Stelle
+   zum Justieren. */
+const SPY_LINE = 110;
+
 type PreviewMessage = {
   type: typeof MSG_TYPE;
   content: Content;
@@ -232,17 +245,41 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
     // requestAnimationFrame: das nächste Paint abwarten, sonst
     // ist der Hash-Anker bei einem frischen Sprung evtl. noch
     // nicht im DOM gerendert.
-    const raf = requestAnimationFrame(() => {
+    // Ziel-Oberkante exakt auf die Spy-Linie setzen — manuell statt
+    // scrollIntoView. Deterministisch (das frühere scrollIntoView landete je
+    // nach Layout ~100px daneben) UND deckungsgleich mit der Spy-Auswahl
+    // (s. SPY_LINE): der Sprung landet genau dort, wo der Spy das Ziel als
+    // aktiv zählt, also kein Klau durch den Nachbarn.
+    // `behavior: "instant"` ist wichtig: die Seite hat im CSS
+    // `scroll-behavior: smooth`. Mit "auto" würde `scrollTo` diese Vorgabe
+    // erben und über ~1 s animieren — der Sprung „driftet" dann am Ziel
+    // vorbei und wirkt daneben. "instant" erzwingt den sofortigen Sprung,
+    // sodass die Ziel-Oberkante in einem Frame exakt auf SPY_LINE sitzt.
+    const scrollToTarget = () => {
       if (hash) {
         const el = document.getElementById(hash.replace(/^#/, ""));
         if (el) {
-          el.scrollIntoView({ behavior: "auto", block: "start" });
+          const y = el.getBoundingClientRect().top + window.scrollY - SPY_LINE;
+          window.scrollTo({ top: Math.max(0, y), behavior: "instant" });
           return;
         }
       }
-      window.scrollTo({ top: 0, behavior: "auto" });
+      window.scrollTo({ top: 0, behavior: "instant" });
+    };
+    // Zwei Durchgänge: die klebrige Kopfzeile (`.site-header`) ändert beim
+    // Scrollen ihre Höhe (Klasse `.scrolled`). Beim ersten Sprung von ganz
+    // oben rechnen wir noch mit der hohen Kopfzeile; nach dem Scroll ist sie
+    // in ihrem End-Zustand. Darum im nächsten Frame nachmessen und exakt auf
+    // die Linie korrigieren — sonst landet das Ziel ~20px zu tief.
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      scrollToTarget();
+      raf2 = requestAnimationFrame(scrollToTarget);
     });
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
     // hash/pathname werden absichtlich nicht als Dependency gelistet:
     // navTick wird IMMER gleichzeitig gebumpt, und so vermeiden wir
     // doppeltes Feuern.
@@ -261,12 +298,16 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
      (`center`, smooth), beim Scroll-Spy nur sanft bei Bedarf (`nearest`,
      sofort) — sonst würde das Editor-Panel bei jedem Scroll zucken.
 
-     Auswahlregel: das OBERSTE Element, das ein schmales Aktivierungsband
-     nahe dem oberen Rand schneidet (`rootMargin` unten). Bewusst NICHT
-     „größtes Sichtbarkeits-Verhältnis" — sonst klaut ein hoher Nachbar die
-     Markierung, und ein Klick-Sprung auf einen kurzen Baustein würde sofort
-     vom Spy überschrieben. Mit der Band-Regel bleibt das angesprungene
-     Element oben im Band aktiv. */
+     Auswahlregel: EINE Aktivierungslinie (`SPY_LINE`). Aktiv ist das
+     unterste Ziel, dessen Oberkante die Linie schon passiert hat. Das
+     schaltet sauber um (kein träges Gefühl) und deckt sich exakt mit dem
+     Klick-Sprung, der das Ziel genau auf diese Linie setzt.
+
+     Auslöser ist ein `scroll`-Listener (rAF-gedrosselt), NICHT ein
+     IntersectionObserver. Grund: ein IO feuert nur beim Kreuzen einer
+     Bandkante — ein schneller Wisch oder ein programmatischer Sprung kann
+     das Band komplett überspringen, dann bliebe die Hervorhebung stehen.
+     Der `scroll`-Listener spiegelt dagegen jede Endposition wider. */
   const lastSpyKeyRef = useRef<string | null>(null);
 
   // Jump-Hold lösen, sobald Mark WIRKLICH selbst scrollt. Wheel, Touch und
@@ -300,31 +341,43 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
     const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
     if (els.length === 0) return;
 
-    // Menge der aktuell sichtbaren Ziele. Wir wählen daraus immer das
-    // oberste (kleinster `top`-Wert) — klassisches Scroll-Spy-Muster.
-    const visible = new Set<HTMLElement>();
-
     function emitActive() {
       // Nach einem gezielten Sprung schweigt der Spy, bis Mark selbst scrollt
       // (s. jumpHoldRef) — sonst überschreibt ein spätes Observer-Feuern die
       // gerade gesetzte Hervorhebung.
       if (jumpHoldRef.current) return;
-      // Zwischen zwei Zielen (nichts im Band): alte Auswahl halten, nicht
-      // löschen — sonst flackert die Hervorhebung beim Scrollen.
-      if (visible.size === 0) return;
-      let topEl: HTMLElement | null = null;
-      let topY = Infinity;
-      for (const el of visible) {
-        const y = el.getBoundingClientRect().top;
-        if (y < topY) {
-          topY = y;
-          topEl = el;
+
+      // Einzel-Linien-Regel: aktiv ist das UNTERSTE Ziel, dessen Oberkante
+      // die Spy-Linie schon passiert hat (größtes `top` <= SPY_LINE). Das
+      // schaltet sauber um, sobald die nächste Sektion die Linie erreicht
+      // — und ein Klick-Sprung landet per Konstruktion genau auf der Linie,
+      // ist also sofort der Gewinner. (Früher „oberstes Element im Band";
+      // das ließ den Nachbarn knapp oben mitzählen → Klau und träges Gefühl.)
+      let best: HTMLElement | null = null;
+      let bestTop = -Infinity;
+      for (const el of els) {
+        const top = el.getBoundingClientRect().top;
+        if (top <= SPY_LINE && top > bestTop) {
+          bestTop = top;
+          best = el;
         }
       }
-      if (!topEl) return;
+      // Ganz am Seitenanfang hat noch kein Ziel die Linie passiert → das
+      // oberste nehmen, damit die erste Sektion aktiv ist.
+      if (!best) {
+        let minTop = Infinity;
+        for (const el of els) {
+          const top = el.getBoundingClientRect().top;
+          if (top < minTop) {
+            minTop = top;
+            best = el;
+          }
+        }
+      }
+      if (!best) return;
 
       if (route.kind === "home") {
-        const sectionId = topEl.dataset.section;
+        const sectionId = best.dataset.section;
         if (!sectionId || !SECTION_BY_ID.has(sectionId)) return;
         const key = SECTION_BY_ID.get(sectionId)!.key;
         // Dedupe-Wächter in einem Ref (überlebt Observer-Neuaufbau), sonst
@@ -336,7 +389,7 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
           window.location.origin,
         );
       } else if (route.kind === "subpage") {
-        const blockIndex = Number(topEl.dataset.blockIndex);
+        const blockIndex = Number(best.dataset.blockIndex);
         if (!Number.isInteger(blockIndex)) return;
         const guard = `b:${route.cat.slug}/${route.sub.slug}/${blockIndex}`;
         if (lastSpyKeyRef.current === guard) return;
@@ -354,22 +407,23 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
       }
     }
 
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) visible.add(e.target as HTMLElement);
-          else visible.delete(e.target as HTMLElement);
-        }
+    // Scroll-Listener als Auslöser, auf einen Frame gedrosselt (rAF): bei
+    // einem Scroll-Burst rechnen wir höchstens einmal pro Paint, nie öfter.
+    // `emitActive` liest die Live-Positionen und wendet die Linien-Regel an.
+    let ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
         emitActive();
-      },
-      // Schmales Band nahe oben: 80px Inset (unter der Pfad-Leiste) bis
-      // -70% — das aktive Ziel ist das, dessen Oberkante das obere Drittel
-      // erreicht. Ein frisch angesprungenes Element sitzt oben im Band und
-      // bleibt darum aktiv.
-      { rootMargin: "-80px 0px -70% 0px", threshold: 0 },
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
+      });
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    // Einmal beim Aufbau auswerten (Seitenwechsel / erstes Rendern), damit
+    // sofort die richtige Karte aktiv ist, ohne dass Mark erst scrollen muss.
+    emitActive();
+    return () => window.removeEventListener("scroll", onScroll);
     // Dependency bewusst nur [pathname, spyTargetCount] — der Observer
     // wird NUR neu gebaut, wenn sich die Ziel-Menge ändert, nicht bei jedem
     // Keystroke. `route` wird im Effekt frisch über die Closure genutzt.
