@@ -857,6 +857,10 @@ img { max-width: 100%; display: block; }
 .btn.sm { padding: 6px 12px; font-size: 0.86rem; }
 .btn.sm.danger { color: #a03a3a; border-color: rgba(160, 58, 58, 0.35); }
 .btn.sm.danger:hover { background: rgba(160, 58, 58, 0.08); }
+/* Destruktive Aktion in voller Größe (z. B. „Verwerfen") — dezent rot,
+   damit sie sich vom neutralen „Speichern" abhebt, ohne zu schreien. */
+.btn.danger { color: #a03a3a; border-color: rgba(160, 58, 58, 0.35); }
+.btn.danger:hover:not(:disabled) { background: rgba(160, 58, 58, 0.08); }
 
 .form-done {
   text-align: center;

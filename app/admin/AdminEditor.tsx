@@ -45,6 +45,8 @@ type Status =
   | { kind: "saved"; at: Date }
   | { kind: "publishing" }
   | { kind: "published"; at: Date }
+  | { kind: "discarding" }
+  | { kind: "discarded"; at: Date }
   | { kind: "error"; message: string };
 
 type Home = Content["home"];
@@ -62,8 +64,11 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
   const [publishedContent, setPublishedContent] = useState<Content>(initialPublished);
   const hasUnpublished =
     JSON.stringify(content) !== JSON.stringify(publishedContent);
-  // Während Speichern/Veröffentlichen sind die Aktionsknöpfe gesperrt.
-  const busy = status.kind === "saving" || status.kind === "publishing";
+  // Während Speichern/Veröffentlichen/Verwerfen sind die Knöpfe gesperrt.
+  const busy =
+    status.kind === "saving" ||
+    status.kind === "publishing" ||
+    status.kind === "discarding";
 
   /* ---------- Live-Vorschau ----------
      iframeRef:    Referenz auf das eingebettete <iframe>.
@@ -253,6 +258,41 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
     }
   }
 
+  /* ---------- Verwerfen ----------
+     Wirft den Entwurf weg und stellt den veröffentlichten Stand wieder
+     her. Destruktiv (nicht veröffentlichte Änderungen gehen verloren) —
+     darum vorher eine Bestätigung. Zwei Wirkungen:
+     1. Server: /api/content/discard löscht die Entwurfs-Zeile.
+     2. Editor: lokaler Content zurück auf `publishedContent`, sodass das
+        Formular und die Vorschau sofort den öffentlichen Stand zeigen.
+        Danach ist `hasUnpublished` automatisch wieder false. */
+  async function discard() {
+    if (
+      !window.confirm(
+        "Nicht veröffentlichte Änderungen verwerfen und zum veröffentlichten Stand zurückkehren?",
+      )
+    ) {
+      return;
+    }
+    setStatus({ kind: "discarding" });
+    try {
+      const res = await fetch("/api/content/discard", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setStatus({ kind: "error", message: err.error || `HTTP ${res.status}` });
+        return;
+      }
+      // Editor + Vorschau auf den veröffentlichten Stand zurücksetzen.
+      setContent(publishedContent);
+      setStatus({ kind: "discarded", at: new Date() });
+    } catch (e) {
+      setStatus({
+        kind: "error",
+        message: e instanceof Error ? e.message : "Netzwerkfehler",
+      });
+    }
+  }
+
   const hero = content.home.hero;
   const welcome = content.home.welcome;
   const methods = content.home.methods;
@@ -288,6 +328,16 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
             title="Entwurf speichern (noch nicht öffentlich)"
           >
             {status.kind === "saving" ? "Speichern…" : "Speichern"}
+          </button>
+          {/* Verwerfen: Entwurf wegwerfen, zurück auf den veröffentlichten
+              Stand. Nur sinnvoll, wenn es unveröffentlichte Änderungen gibt. */}
+          <button
+            onClick={discard}
+            className="btn ghost danger"
+            disabled={busy || !hasUnpublished}
+            title="Nicht veröffentlichte Änderungen verwerfen"
+          >
+            {status.kind === "discarding" ? "Verwerfe…" : "Verwerfen"}
           </button>
           {/* Veröffentlichen ist die eigentliche „live schalten"-Aktion.
               Deaktiviert, wenn es nichts Unveröffentlichtes gibt. */}
@@ -602,6 +652,13 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
               {status.kind === "saving" ? "Speichern…" : "Speichern"}
             </button>
             <button
+              onClick={discard}
+              className="btn ghost danger"
+              disabled={busy || !hasUnpublished}
+            >
+              {status.kind === "discarding" ? "Verwerfe…" : "Verwerfen"}
+            </button>
+            <button
               onClick={publish}
               className="btn primary"
               disabled={busy || !hasUnpublished}
@@ -829,7 +886,13 @@ function StatusPill({ status }: { status: Status }) {
   let color = "#6A5A72";
   if (status.kind === "saving") text = "Speichern…";
   else if (status.kind === "publishing") text = "Veröffentliche…";
-  else if (status.kind === "saved") {
+  else if (status.kind === "discarding") text = "Verwerfe…";
+  else if (status.kind === "discarded") {
+    text =
+      "Entwurf verworfen · " +
+      status.at.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    color = "#9C7544";
+  } else if (status.kind === "saved") {
     text =
       "Gespeichert · " +
       status.at.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
