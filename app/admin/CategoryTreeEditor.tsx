@@ -350,6 +350,7 @@ export function CategoryTreeEditor({ categories, setContent, blockSync }: Props)
           border-radius: 14px;
           padding: 16px 18px;
           display: flex; flex-direction: column; gap: 12px;
+          scroll-margin-top: 120px;
         }
         .tree-row {
           display: flex; align-items: center; justify-content: space-between;
@@ -523,7 +524,11 @@ type CategoryCardProps = {
 function CategoryCard(props: CategoryCardProps) {
   const { category: cat, catIdx, catCount } = props;
   return (
-    <div className="tree-cat">
+    // `id` als Sprungziel für die Editor-Navigation (s. AdminEditor:
+    // `grp-cat-<id>`). `scroll-margin-top` hält den Sprung unter der
+    // klebrigen Kopfleiste + Nav-Pillen.
+    <div className="tree-cat" id={"grp-cat-" + cat.id}>
+
       <div className="tree-row">
         <p className="tree-label">
           Kategorie {catIdx + 1} · /{cat.slug || "…"}

@@ -198,6 +198,25 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
     );
   }
 
+  /* ---------- Editor-Navigation (Website-Struktur) ----------
+     Die Editor-Navigation spiegelt die Seitenstruktur: „Startseite" plus je
+     eine Kategorie. Ein Klick scrollt das Editor-Formular zur passenden
+     Gruppe (nicht die Vorschau — dafür gibt es die Karten-/Block-Sprünge).
+     Die Ziel-Gruppen tragen passende `id`s (`grp-home`, `grp-cat-<id>`);
+     `scroll-margin-top` hält den Sprung unter der klebrigen Kopfleiste. */
+  const navItems = [
+    { label: "Startseite", anchor: "grp-home" },
+    ...content.categories.map((cat) => ({
+      label: cat.navLabel || "Kategorie",
+      anchor: "grp-cat-" + cat.id,
+    })),
+  ];
+  function scrollToGroup(anchor: string) {
+    document
+      .getElementById(anchor)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // Bei jedem Content-Update den aktuellen Baum ins Iframe schicken.
   // Erst wenn die Vorschau ready ist (sonst geht das Signal verloren,
   // bevor sie zuhört).
@@ -469,10 +488,34 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           Formular bekommt die volle Breite. */}
       <div className={"split " + (previewOpen ? "with-preview" : "no-preview")}>
         <div className="form-pane">
+          {/* Editor-Navigation, spiegelt die Website-Struktur (Startseite +
+              Kategorien). Klebt unter der Kopfleiste, damit man von überall
+              im Formular schnell zur gewünschten Gruppe springt. */}
+          <nav className="editor-nav" aria-label="Editor-Navigation">
+            {navItems.map((item) => (
+              <button
+                key={item.anchor}
+                type="button"
+                className="editor-nav-item"
+                onClick={() => scrollToGroup(item.anchor)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+
           <p className="intro-hint">
-            Alle Texte der Startseite. Beim Tippen aktualisiert sich die
-            Vorschau rechts in Echtzeit.
+            Der Editor ist wie die Website aufgebaut: zuerst die Startseite mit
+            ihren Abschnitten, danach die Kategorien mit ihren Unterseiten. Beim
+            Tippen aktualisiert sich die Vorschau rechts in Echtzeit.
           </p>
+
+      {/* ---------- Gruppe: Startseite ----------
+          Bündelt die sechs Startseiten-Abschnitte unter einer Überschrift,
+          damit der Editor dieselbe Gliederung wie die Website hat. Die
+          einzelnen Karten (und ihr `data-card`-Sync) bleiben unverändert. */}
+      <div id="grp-home" className="editor-group">
+        <h2 className="editor-group-title">Startseite</h2>
 
       {/* ---------- Hero ---------- */}
       <section className={cardClass("hero")} data-card="hero">
@@ -735,19 +778,26 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         </div>
       </section>
 
-      {/* ---------- Kategorien & Unterseiten (Slice 2b) ----------
+      {/* Ende der Startseiten-Gruppe. */}
+      </div>
+
+      {/* ---------- Gruppe: Kategorien & Unterseiten (Slice 2b) ----------
           Editor für den Unterseiten-Baum. Bis hier ließ sich nur die
           Startseite pflegen — diese Karte schaltet das Bearbeiten der
           Kategorien (Aurachirurgie, Jin Shin Jyutsu) inkl. ihrer
-          Unterseiten und Inhaltsblöcke frei. */}
-      <section className="card wide">
-        <h2>Kategorien & Unterseiten</h2>
-        <CategoryTreeEditor
-          categories={content.categories}
-          setContent={setContent}
-          blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
-        />
-      </section>
+          Unterseiten und Inhaltsblöcke frei. Die einzelnen Kategorien
+          tragen `id="grp-cat-<id>"` (im CategoryTreeEditor), damit die
+          Editor-Navigation oben sie direkt anspringen kann. */}
+      <div className="editor-group">
+        <h2 className="editor-group-title">Kategorien & Unterseiten</h2>
+        <section className="card wide">
+          <CategoryTreeEditor
+            categories={content.categories}
+            setContent={setContent}
+            blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
+          />
+        </section>
+      </div>
 
           <div className="footer-actions">
             <button onClick={save} className="btn ghost" disabled={busy}>
@@ -825,6 +875,47 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         .intro-hint {
           max-width: 720px; margin: 0 0 18px; color: #6A5A72;
           font-size: 0.96rem; font-style: italic;
+        }
+
+        /* ---- Editor-Navigation (spiegelt die Website-Struktur) ----
+           Klebt unter der Kopfleiste (.admin-top ist sticky bei top:0).
+           Eine Reihe Pillen: Startseite + je eine Kategorie. */
+        .editor-nav {
+          position: sticky;
+          top: 64px;
+          z-index: 4;
+          display: flex; flex-wrap: wrap; gap: 8px;
+          padding: 10px 0;
+          margin-bottom: 8px;
+          background: #FBF8F4;
+          border-bottom: 1px solid rgba(94, 51, 112, 0.1);
+        }
+        .editor-nav-item {
+          padding: 6px 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(94, 51, 112, 0.25);
+          background: #fff;
+          color: #5E3370;
+          font-family: inherit;
+          font-size: 0.92rem;
+          cursor: pointer;
+          transition: background .15s, border-color .15s;
+        }
+        .editor-nav-item:hover { background: rgba(94, 51, 112, 0.08); }
+
+        /* ---- Editor-Gruppen (eine je Website-Bereich) ----
+           scroll-margin-top hält den Sprung der Editor-Navigation unter
+           Kopfleiste + Nav-Pillen, statt randlos oben anzustoßen. */
+        .editor-group { scroll-margin-top: 120px; }
+        .editor-group-title {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-weight: 600;
+          font-size: 1.5rem;
+          color: #43235A;
+          margin: 18px 0 12px;
+          padding-bottom: 6px;
+          border-bottom: 2px solid rgba(94, 51, 112, 0.16);
+          max-width: 820px;
         }
         .btn {
           padding: 10px 18px; font-size: 0.98rem; border-radius: 999px;
