@@ -24,7 +24,7 @@ type Home = Content["home"];
    den Einträgen wird optisch ein kleiner Punkt eingefügt. */
 export function Hero({ data }: { data: Home["hero"] }) {
   return (
-    <section className="hero" id="top">
+    <section className="hero" id="top" data-section="top">
       <Bokeh />
       <div className="container">
         <div className="mark-wrap reveal">
@@ -59,7 +59,7 @@ export function Hero({ data }: { data: Home["hero"] }) {
    ergänzen, ohne dass HTML-Wissen nötig wäre. */
 export function WelcomeSection({ data }: { data: Home["welcome"] }) {
   return (
-    <section className="section" id="empfang">
+    <section className="section" id="empfang" data-section="empfang">
       <div className="container welcome-grid">
         <div className="welcome-copy reveal">
           <p className="eyebrow">{data.eyebrow}</p>
@@ -94,7 +94,7 @@ export function MethodsSection({
   categories: Content["categories"];
 }) {
   return (
-    <section className="section" id="methoden" style={{ background: "var(--bg-tint)" }}>
+    <section className="section" id="methoden" data-section="methoden" style={{ background: "var(--bg-tint)" }}>
       <div className="container">
         <div className="section-head center reveal">
           <p className="eyebrow">{data.eyebrow}</p>
@@ -132,7 +132,7 @@ export function MethodsSection({
    `/kathrin.png`. Bild-Upload kommt in Slice 3. */
 export function AboutSection({ data }: { data: Home["about"] }) {
   return (
-    <section className="section about" id="ueber">
+    <section className="section about" id="ueber" data-section="ueber">
       <div className="container about-grid">
         <div className="about-media reveal">
           <MediaSlot src={data.portrait} alt="Portrait von Kathrin Haas" />
@@ -156,7 +156,7 @@ export function AboutSection({ data }: { data: Home["about"] }) {
 /* Zweizeiliges Zitat plus kleine Signatur ("attest"). */
 export function CalmSection({ data }: { data: Home["calm"] }) {
   return (
-    <section className="calm">
+    <section className="calm" id="stille" data-section="stille">
       <Bokeh />
       <div className="container reveal">
         <blockquote>
@@ -178,7 +178,7 @@ export function CalmSection({ data }: { data: Home["calm"] }) {
 export function ContactSection({ data }: { data: Home["contact"] }) {
   const telHref = "tel:" + data.phone.replace(/\s+/g, "");
   return (
-    <section className="section" id="kontakt">
+    <section className="section" id="kontakt" data-section="kontakt">
       <div className="container contact-grid">
         <div className="contact-info reveal">
           <p className="eyebrow">{data.eyebrow}</p>

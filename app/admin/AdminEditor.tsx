@@ -4,6 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import type { Content } from "@/lib/default-content";
 import { CategoryTreeEditor } from "./CategoryTreeEditor";
+import {
+  SECTION_BY_KEY,
+  MSG_SCROLL_TO,
+  MSG_ACTIVE_SECTION,
+  type HomeSectionKey,
+} from "../components/section-map";
 
 /* AdminEditor
    ------------------------------------------------------------
@@ -80,22 +86,58 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
   const [previewReady, setPreviewReady] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
 
-  // Listener für Bereitschafts-Meldung aus der Vorschau.
+  /* ---------- Editor↔Vorschau-Sektions-Sync ----------
+     `activeSection` ist die zuletzt in der Vorschau angeklickte (oder im
+     Editor angesprungene) Startseiten-Sektion. Sie hebt die passende
+     Editor-Karte hervor (`is-active`). null = keine Hervorhebung. */
+  const [activeSection, setActiveSection] = useState<HomeSectionKey | null>(null);
+
+  // Listener: Bereitschaft + aktive-Sektion-Meldung aus der Vorschau.
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
       if (ev.origin !== window.location.origin) return;
-      const data = ev.data as unknown;
-      if (
-        typeof data === "object" &&
-        data !== null &&
-        (data as { type?: unknown }).type === "rr-preview-ready"
-      ) {
+      const data = ev.data as { type?: unknown; key?: unknown } | null;
+      if (typeof data !== "object" || data === null) return;
+
+      if (data.type === "rr-preview-ready") {
         setPreviewReady(true);
+        return;
+      }
+
+      // Vorschau meldet: in dieser Sektion wurde geklickt → Karte
+      // hervorheben und ins Bild scrollen.
+      if (data.type === MSG_ACTIVE_SECTION && typeof data.key === "string") {
+        const key = data.key as HomeSectionKey;
+        setActiveSection(key);
+        // Nach dem Re-Render zur Karte scrollen (im Editor-Panel).
+        requestAnimationFrame(() => {
+          document
+            .querySelector(`[data-card="${key}"]`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        return;
       }
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
+
+  /* Klick auf eine Karten-Überschrift → Vorschau zur Sektion scrollen.
+     Schickt `rr-scroll-to` ins Iframe (nur wenn die Vorschau bereit ist)
+     und markiert die Karte lokal als aktiv. */
+  function jumpToSection(key: HomeSectionKey) {
+    setActiveSection(key);
+    const section = SECTION_BY_KEY.get(key);
+    if (!section || !previewReady) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: MSG_SCROLL_TO, sectionId: section.sectionId },
+      window.location.origin,
+    );
+  }
+
+  // Klassen-Helfer für die Editor-Karten: „card" plus optional „is-active".
+  const cardClass = (key: HomeSectionKey) =>
+    "card" + (activeSection === key ? " is-active" : "");
 
   // Bei jedem Content-Update den aktuellen Baum ins Iframe schicken.
   // Erst wenn die Vorschau ready ist (sonst geht das Signal verloren,
@@ -374,8 +416,8 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           </p>
 
       {/* ---------- Hero ---------- */}
-      <section className="card">
-        <h2>Hero · Einstieg</h2>
+      <section className={cardClass("hero")} data-card="hero">
+        <h2 className="card-jump" onClick={() => jumpToSection("hero")} title="In der Vorschau zu dieser Sektion springen">Hero · Einstieg</h2>
         <Field label="Überschrift">
           <input
             type="text"
@@ -428,8 +470,8 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </section>
 
       {/* ---------- Willkommen ---------- */}
-      <section className="card">
-        <h2>Willkommen</h2>
+      <section className={cardClass("welcome")} data-card="welcome">
+        <h2 className="card-jump" onClick={() => jumpToSection("welcome")} title="In der Vorschau zu dieser Sektion springen">Willkommen</h2>
         <div className="row-2">
           <Field label="Eyebrow (klein darüber)">
             <input
@@ -465,8 +507,8 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </section>
 
       {/* ---------- Methoden ---------- */}
-      <section className="card">
-        <h2>Methoden · Übersicht</h2>
+      <section className={cardClass("methods")} data-card="methods">
+        <h2 className="card-jump" onClick={() => jumpToSection("methods")} title="In der Vorschau zu dieser Sektion springen">Methoden · Übersicht</h2>
         <div className="row-2">
           <Field label="Eyebrow">
             <input
@@ -528,8 +570,8 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </section>
 
       {/* ---------- Über mich ---------- */}
-      <section className="card">
-        <h2>Über mich</h2>
+      <section className={cardClass("about")} data-card="about">
+        <h2 className="card-jump" onClick={() => jumpToSection("about")} title="In der Vorschau zu dieser Sektion springen">Über mich</h2>
         <div className="row-2">
           <Field label="Eyebrow">
             <input
@@ -558,8 +600,8 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </section>
 
       {/* ---------- Stille / Calm ---------- */}
-      <section className="card">
-        <h2>Stille-Zitat</h2>
+      <section className={cardClass("calm")} data-card="calm">
+        <h2 className="card-jump" onClick={() => jumpToSection("calm")} title="In der Vorschau zu dieser Sektion springen">Stille-Zitat</h2>
         <Field label="Zeile 1">
           <input
             type="text"
@@ -584,8 +626,8 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </section>
 
       {/* ---------- Kontakt ---------- */}
-      <section className="card">
-        <h2>Kontakt</h2>
+      <section className={cardClass("contact")} data-card="contact">
+        <h2 className="card-jump" onClick={() => jumpToSection("contact")} title="In der Vorschau zu dieser Sektion springen">Kontakt</h2>
         <div className="row-2">
           <Field label="Eyebrow">
             <input
@@ -750,11 +792,26 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
            Karten (Kategorie → Unterseite → Block) brauchen mehr
            Platz als die einfachen Formulare. */
         .card.wide { max-width: 980px; }
+        /* Sektions-Sync: die in der Vorschau angeklickte (oder hier
+           angesprungene) Karte wird kurz hervorgehoben — violetter
+           Rahmen + zarter Schimmer. Sanfter Übergang, damit der Wechsel
+           nicht springt. */
+        .card {
+          transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .card.is-active {
+          border-color: #5E3370;
+          box-shadow: 0 0 0 3px rgba(94, 51, 112, 0.14);
+        }
         .card h2 {
           font-family: 'Cormorant Garamond', Georgia, serif;
           font-weight: 600;
           margin: 0 0 4px;
         }
+        /* Klickbare Karten-Überschrift: springt in der Vorschau zur
+           zugehörigen Sektion. Dezent als anklickbar markiert. */
+        .card-jump { cursor: pointer; }
+        .card-jump:hover { color: #5E3370; }
         /* Field-Wrapper: ein Label oben, das Input darunter. */
         .field { display: flex; flex-direction: column; gap: 6px; }
         .field > span {

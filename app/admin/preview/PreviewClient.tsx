@@ -14,6 +14,11 @@ import {
 } from "../../components/Sections";
 import { CategoryView } from "../../components/views/CategoryView";
 import { SubpageView } from "../../components/views/SubpageView";
+import {
+  SECTION_BY_ID,
+  MSG_SCROLL_TO,
+  MSG_ACTIVE_SECTION,
+} from "../../components/section-map";
 
 /* PreviewClient — Live-Vorschau im Editor-Iframe
    ------------------------------------------------------------
@@ -135,8 +140,23 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
       if (ev.origin !== window.location.origin) return;
-      if (!isPreviewMessage(ev.data)) return;
-      setContent(ev.data.content);
+
+      // 1) Content-Update aus dem Editor.
+      if (isPreviewMessage(ev.data)) {
+        setContent(ev.data.content);
+        return;
+      }
+
+      // 2) Editor bittet, zu einer Startseiten-Sektion zu scrollen
+      //    (Klick auf eine Editor-Karten-Überschrift). Wir nutzen den
+      //    bestehenden navigate()-Helfer: er setzt den Pfad auf "/" (falls
+      //    die Vorschau gerade auf einer Unterseite steht) und scrollt per
+      //    Hash zur Sektion — beides ist hier kostenlos.
+      const data = ev.data as Record<string, unknown> | null;
+      if (data && data.type === MSG_SCROLL_TO && typeof data.sectionId === "string") {
+        navigate("/", "#" + data.sectionId);
+        return;
+      }
     }
     window.addEventListener("message", onMessage);
 
@@ -186,7 +206,20 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
 
     const target = e.target as HTMLElement | null;
     const anchor = target?.closest("a");
-    if (!anchor) return;
+    if (!anchor) {
+      // Kein Link angeklickt — vielleicht der Körper einer Startseiten-
+      // Sektion. Dann melden wir dem Editor, welche Sektion getroffen
+      // wurde, damit er die passende Karte hervorhebt und ins Bild scrollt.
+      const sectionEl = target?.closest<HTMLElement>("[data-section]");
+      const sectionId = sectionEl?.dataset.section;
+      if (sectionId && SECTION_BY_ID.has(sectionId)) {
+        window.parent?.postMessage(
+          { type: MSG_ACTIVE_SECTION, key: SECTION_BY_ID.get(sectionId)!.key },
+          window.location.origin,
+        );
+      }
+      return;
+    }
     // anchor.target ist standardmäßig "" — leere Strings sind falsy,
     // die zusätzliche `!== ""`-Klausel war redundant.
     if (anchor.target && anchor.target !== "_self") return;

@@ -2,7 +2,7 @@
 
 Handoff-Datei für die nächste Session (oft nach `/compact`). Das volle Bild liegt in `~/.claude/projects/-Users-markbregenzer-…/memory/` — vor allem `project-raum-resonanz-cms.md`. Hier nur die Kurzfassung.
 
-## Wo wir stehen (Stand 2026-06-02)
+## Wo wir stehen (Stand 2026-06-03)
 
 Vier Slices live und manuell verifiziert. End-to-end Loop steht:
 
@@ -17,6 +17,7 @@ Vier Slices live und manuell verifiziert. End-to-end Loop steht:
 - **Drag-&-Drop Bild-Upload (`ImageField`, Commit `f141d4a`):** Ersetzt die alten URL-Textfelder durch ein wiederverwendbares Upload-Feld (Datei wählen oder Foto reinziehen → Sofort-Vorschau → ändern/entfernen), 1:1 wie im Claude-Design-Prototyp. `app/admin/ImageField.tsx`, in allen drei Bild-Inputs (Textblock-Bild, Standalone-Bildblock, Karten-Bild). Speicherform: `FileReader` → **Data-URL** im selben `string | null`-Feld → Datenmodell unverändert, vorwärtskompatibel zu Slice 3 (Blob). `MediaSlot` rendert Data-URLs als einfaches `<img>` (next/image kann Inline-Blobs nicht optimieren). Tradeoff bis Blob: Data-URLs liegen inline im Content-JSON, große Fotos blähen es auf.
 - **Entwurf → Veröffentlichen (Draft/Publish, aus Bundle-Modell):** Die Verwaltung bearbeitet jetzt einen **Entwurf** (Key `draft`); die öffentliche Website zeigt nur den **veröffentlichten** Stand (Key `content`). Zwei Zeilen in derselben `content_kv`-Tabelle — kein neues Schema. `lib/content.ts` → neues `getDraft()` (Draft, fällt auf Published zurück, falls noch kein Entwurf → kein Seed nötig). `app/api/content` GET/POST arbeiten auf `draft` (POST per Upsert). Neue Route `app/api/content/publish` kopiert `draft → content`. `app/admin/page.tsx` lädt beide. `AdminEditor` bekam **Veröffentlichen**-Button + Dauer-Anzeige „● Nicht veröffentlichte Änderungen" / „● Veröffentlicht" (Wertvergleich Entwurf↔Published, nicht Zeitstempel). „Speichern" = Entwurf sichern (privat); „Veröffentlichen" = live schalten. End-to-end im Browser verifiziert: Speichern ändert die Website NICHT, erst Veröffentlichen. Öffentlicher Lesepfad (`getContent`, Key `content`) unverändert.
 - **Verwerfen (Entwurf zurücksetzen):** Begleiter zu Draft/Publish. Neue Route `app/api/content/discard` löscht die `draft`-Zeile (idempotent); `getDraft` fällt danach auf Published zurück. **Verwerfen**-Button (mit Bestätigungsdialog, da destruktiv) setzt Editor + Vorschau lokal auf `publishedContent` zurück. So kann Kathrin nicht veröffentlichte Änderungen rückgängig machen. Button nur aktiv, wenn es Unveröffentlichtes gibt. End-to-end verifiziert.
+- **Editor↔Vorschau Sektions-Sync (2026-06-03):** Klick auf eine Editor-Karten-Überschrift scrollt die Vorschau zur passenden Startseiten-Sektion; Klick auf eine Sektion in der Vorschau hebt die zugehörige Editor-Karte hervor (`.card.is-active`) und scrollt sie ins Bild. **Eine** geteilte Tabelle `app/components/section-map.ts` hält die 6 `key ↔ sectionId ↔ label`-Zuordnungen + die zwei neuen Message-Typen (`MSG_SCROLL_TO` Editor→Vorschau, `MSG_ACTIVE_SECTION` Vorschau→Editor) — IDs nicht mehr an drei Stellen pflegen. `Sections.tsx` trägt `data-section` an den 6 Home-Sektionen (CalmSection bekam zusätzlich `id="stille"`). `PreviewClient.tsx`: neuer `rr-scroll-to`-Handler (nutzt das vorhandene `navigate()`), und der bestehende `onClickCapture` meldet bei Klick auf eine `[data-section]` (ohne Anker) die `key` zurück — Origin in beide Richtungen geprüft. `AdminEditor.tsx`: `activeSection`-State + Listener, `jumpToSection()`, klickbare `.card-jump`-Überschriften. **Bewusst nur Startseite** (Unterseiten-Bausteine `block-<i>` = nächste Ausbaustufe, eigene Map nötig). **Kein Scroll-Spy** (fragiler IntersectionObserver im Iframe) — klick-basiert in beiden Richtungen. Beide Richtungen im Browser verifiziert (Editor→Vorschau scrollt, Vorschau→Editor hebt hervor + entfernt alte Hervorhebung).
 
 Heutiger Commit: `87e69c2 — Build Raum & Resonanz CMS (Neon + NextAuth + iframe live preview)`.
 
@@ -27,6 +28,7 @@ Mark wählt beim nächsten Mal. Nichts unaufgefordert starten:
 1. **Slice 3 — Bild-Upload via Vercel Blob.** Braucht `BLOB_READ_WRITE_TOKEN` in `.env.local`. Route-Handler nimmt Multipart-Upload, schiebt nach Blob, gibt kurze URL zurück. `ImageField` lädt dann statt einer Data-URL gegen den Endpoint hoch und speichert die Blob-URL — Feldwert bleibt `string | null`, Renderer/Datenmodell ändern sich nicht. Behebt den Inline-Data-URL-Tradeoff (kein Foto-Ballast mehr im Content-JSON). Optional: `ImageField` auch auf die Home-Bilder (Welcome/About) in `AdminEditor` ausweiten.
 2. **Deploy auf Vercel.** Projekt anlegen, gleiche Env-Vars setzen (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` auf Prod-URL, `ADMIN_USER`, `ADMIN_PASS_HASH_B64`). Migrate per CLI oder `postbuild`. Chat2-Versprechen hält, weil `migrate.mjs` `ON CONFLICT DO NOTHING` nutzt.
 3. **Admin-Editor strukturieren** (Mark, 2026-06-02): Linkes Editor-Pane ist aktuell flach. IA wird in Claude Design neu gestaltet (Update von `admin.html`-Prototyp), danach hier nachziehen.
+4. **Unterseiten-Baustein-Sync** — Folgeschritt zum Sektions-Sync (oben). Dieselbe Klick-Kopplung für `block-<i>`-Bausteine im `CategoryTreeEditor`. Braucht eine eigene Map (die Bausteine liegen im verschachtelten Baum, nicht in der flachen `HOME_SECTIONS`-Liste). Optional dann Scroll-Spy nachrüsten.
 
 ## Manuelle Verifikation
 
@@ -79,6 +81,7 @@ Geteilt:
 - `app/components/views/SubpageView.tsx` — Unterseite, Link per Prop injizierbar
 - `app/components/views/BlockView.tsx` — Block-Renderer (text + image)
 - `app/components/views/roman.ts` — `romanNumeral`-Helfer
+- `app/components/section-map.ts` — geteilte Sektions-Tabelle + Sync-Message-Typen (Editor↔Vorschau)
 
 ## Nicht rückbauen (aus vorigen Sessions)
 
