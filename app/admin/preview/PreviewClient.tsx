@@ -19,6 +19,11 @@ import {
   MSG_SCROLL_TO,
   MSG_ACTIVE_SECTION,
 } from "../../components/section-map";
+import {
+  MSG_SCROLL_TO_BLOCK,
+  MSG_ACTIVE_BLOCK,
+  blockAnchorId,
+} from "../../components/block-sync";
 
 /* PreviewClient — Live-Vorschau im Editor-Iframe
    ------------------------------------------------------------
@@ -157,6 +162,22 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
         navigate("/", "#" + data.sectionId);
         return;
       }
+
+      // 3) Editor bittet, zu einem Unterseiten-Baustein zu scrollen
+      //    (Klick auf eine Block-Überschrift im Baum-Editor). Anders als
+      //    bei der Startseite ist das ein SEITENWECHSEL: wir navigieren
+      //    auf die Unterseite `path` UND scrollen per Hash zum Baustein.
+      //    navigate() setzt Pfad + Hash atomar; der navTick-Effect scrollt
+      //    nach dem Mount der frischen Unterseite zum Anker.
+      if (
+        data &&
+        data.type === MSG_SCROLL_TO_BLOCK &&
+        typeof data.path === "string" &&
+        typeof data.blockIndex === "number"
+      ) {
+        navigate(data.path, "#" + blockAnchorId(data.blockIndex));
+        return;
+      }
     }
     window.addEventListener("message", onMessage);
 
@@ -207,9 +228,33 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
     const target = e.target as HTMLElement | null;
     const anchor = target?.closest("a");
     if (!anchor) {
-      // Kein Link angeklickt — vielleicht der Körper einer Startseiten-
-      // Sektion. Dann melden wir dem Editor, welche Sektion getroffen
-      // wurde, damit er die passende Karte hervorhebt und ins Bild scrollt.
+      // Kein Link angeklickt. Zwei Fälle melden wir an den Editor zurück,
+      // damit er die passende Karte hervorhebt und ins Bild scrollt:
+
+      // a) Klick auf einen Unterseiten-Baustein. Die Baustein-Position
+      //    steckt im `data-block-index`; Kategorie + Unterseite leiten wir
+      //    aus dem aktuellen Pfad ab (die Vorschau zeigt genau eine
+      //    Unterseite). Nur auf einer echten Unterseiten-Route (zwei
+      //    Pfad-Segmente) sinnvoll.
+      const blockEl = target?.closest<HTMLElement>("[data-block-index]");
+      if (blockEl) {
+        const blockIndex = Number(blockEl.dataset.blockIndex);
+        const parts = pathname.replace(/^\/+|\/+$/g, "").split("/");
+        if (parts.length === 2 && Number.isInteger(blockIndex)) {
+          window.parent?.postMessage(
+            {
+              type: MSG_ACTIVE_BLOCK,
+              catSlug: parts[0],
+              subSlug: parts[1],
+              blockIndex,
+            },
+            window.location.origin,
+          );
+        }
+        return;
+      }
+
+      // b) Klick auf den Körper einer Startseiten-Sektion.
       const sectionEl = target?.closest<HTMLElement>("[data-section]");
       const sectionId = sectionEl?.dataset.section;
       if (sectionId && SECTION_BY_ID.has(sectionId)) {

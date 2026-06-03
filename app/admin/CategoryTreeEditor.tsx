@@ -9,6 +9,7 @@ import type {
   ImageSize,
 } from "@/lib/default-content";
 import { ImageField } from "./ImageField";
+import { blockKey } from "../components/block-sync";
 
 /* CategoryTreeEditor — Slice 2b
    ------------------------------------------------------------
@@ -42,9 +43,19 @@ import { ImageField } from "./ImageField";
 
 type SetContent = (updater: (c: Content) => Content) => void;
 
+/* Block-Sync-Kopplung, vom AdminEditor durchgereicht. `activeKey` ist
+   der zuletzt aktive Baustein-Schlüssel (oder null); `onJump` springt
+   in der Vorschau zum Baustein. Wird als EIN Objekt durch die vier
+   Karten-Ebenen gereicht — schlanker als zwei Einzel-Props pro Stufe. */
+type BlockSync = {
+  activeKey: string | null;
+  onJump: (catSlug: string, subSlug: string, blockIndex: number) => void;
+};
+
 type Props = {
   categories: Content["categories"];
   setContent: SetContent;
+  blockSync: BlockSync;
 };
 
 // Kleine ID-Helfer. Für neue Knoten reicht ein zeit-basierter Suffix
@@ -75,7 +86,7 @@ function slugify(s: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-export function CategoryTreeEditor({ categories, setContent }: Props) {
+export function CategoryTreeEditor({ categories, setContent, blockSync }: Props) {
   /* ---------- Kategorie-Operationen ---------- */
 
   function updateCategory<K extends keyof Category>(
@@ -313,6 +324,7 @@ export function CategoryTreeEditor({ categories, setContent }: Props) {
           onAddBlock={addBlock}
           onRemoveBlock={removeBlock}
           onMoveBlock={moveBlock}
+          blockSync={blockSync}
         />
       ))}
 
@@ -411,6 +423,21 @@ export function CategoryTreeEditor({ categories, setContent }: Props) {
           color: #9C7544;
           margin: 0;
         }
+        /* Block-Sync: anklickbare Block-Überschrift springt in der
+           Vorschau zum Baustein. Dezent als anklickbar markiert. */
+        .tree-block-type.jump { cursor: pointer; }
+        .tree-block-type.jump:hover { color: #5E3370; }
+        /* Hervorhebung, wenn der Baustein in der Vorschau angeklickt
+           wurde — durchgehender violetter Rahmen + zarter Schimmer.
+           Sanfter Übergang, damit der Wechsel nicht springt. */
+        .tree-block {
+          transition: border-color .25s ease, box-shadow .25s ease;
+        }
+        .tree-block.is-active {
+          border-style: solid;
+          border-color: #5E3370;
+          box-shadow: 0 0 0 2px rgba(94, 51, 112, 0.12);
+        }
         .add-row {
           display: flex; gap: 8px; flex-wrap: wrap;
         }
@@ -490,6 +517,7 @@ type CategoryCardProps = {
     blockIdx: number,
     dir: -1 | 1,
   ) => void;
+  blockSync: BlockSync;
 };
 
 function CategoryCard(props: CategoryCardProps) {
@@ -579,6 +607,7 @@ function CategoryCard(props: CategoryCardProps) {
           onAddBlock={props.onAddBlock}
           onRemoveBlock={props.onRemoveBlock}
           onMoveBlock={props.onMoveBlock}
+          blockSync={props.blockSync}
         />
       ))}
 
@@ -610,6 +639,7 @@ type SubpageCardProps = {
   onAddBlock: CategoryCardProps["onAddBlock"];
   onRemoveBlock: CategoryCardProps["onRemoveBlock"];
   onMoveBlock: CategoryCardProps["onMoveBlock"];
+  blockSync: BlockSync;
 };
 
 function SubpageCard(props: SubpageCardProps) {
@@ -715,9 +745,12 @@ function SubpageCard(props: SubpageCardProps) {
           subIdx={subIdx}
           blockIdx={blockIdx}
           blockCount={sub.blocks.length}
+          catSlug={catSlug}
+          subSlug={sub.slug}
           onUpdateBlock={props.onUpdateBlock}
           onRemoveBlock={props.onRemoveBlock}
           onMoveBlock={props.onMoveBlock}
+          blockSync={props.blockSync}
         />
       ))}
 
@@ -753,17 +786,31 @@ type BlockCardProps = {
   subIdx: number;
   blockIdx: number;
   blockCount: number;
+  catSlug: string;
+  subSlug: string;
   onUpdateBlock: CategoryCardProps["onUpdateBlock"];
   onRemoveBlock: CategoryCardProps["onRemoveBlock"];
   onMoveBlock: CategoryCardProps["onMoveBlock"];
+  blockSync: BlockSync;
 };
 
 function BlockCard(props: BlockCardProps) {
-  const { block, catIdx, subIdx, blockIdx, blockCount } = props;
+  const { block, catIdx, subIdx, blockIdx, blockCount, catSlug, subSlug } = props;
+  // Gemeinsamer Identitäts-Schlüssel — identisch zu dem, was die Vorschau
+  // beim Klick meldet. Daran hängt die Hervorhebung.
+  const key = blockKey(catSlug, subSlug, blockIdx);
+  const isActive = props.blockSync.activeKey === key;
   return (
-    <div className="tree-block">
+    <div
+      className={"tree-block" + (isActive ? " is-active" : "")}
+      data-block-key={key}
+    >
       <div className="tree-block-header">
-        <p className="tree-block-type">
+        <p
+          className="tree-block-type jump"
+          onClick={() => props.blockSync.onJump(catSlug, subSlug, blockIdx)}
+          title="In der Vorschau zu diesem Baustein springen"
+        >
           {block.type === "text" ? "Text-Block" : "Bild-Block"} {blockIdx + 1}
         </p>
         <div className="tree-actions">

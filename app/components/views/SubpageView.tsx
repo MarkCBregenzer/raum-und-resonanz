@@ -1,6 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import type { Category, Subpage } from "@/lib/default-content";
 import { BlockView } from "./BlockView";
+import { blockAnchorId } from "../block-sync";
 
 /* SubpageView — geteilte Render-Schicht für eine Methoden-Unterseite.
    ------------------------------------------------------------
@@ -62,9 +63,27 @@ export function SubpageView({
         {/* Block-Renderer.
             Eigener Helfer, damit sich später leicht weitere Typen
             ergänzen lassen (Zitat, Liste, …) und der TypeScript-
-            Switch exhaustiv bleibt. */}
+            Switch exhaustiv bleibt.
+
+            Jeder Baustein bekommt einen schmalen Anker-Wrapper:
+            - `id={blockAnchorId(i)}` ist das Scroll-Ziel, wenn der
+              Editor per `#block-<i>` herspringt (Block-Sync).
+            - `data-block-index` erkennt die Vorschau beim Klick, um
+              dem Editor die getroffene Baustein-Position zu melden.
+            `scrollMarginTop` hält den Sprung unter der dezenten
+            Pfad-Leiste der Vorschau (statt randlos oben anzustoßen).
+            Der Wrapper umschließt nur — die `.reveal`-Animation bleibt
+            am inneren Element, also greift der IntersectionObserver der
+            öffentlichen Route unverändert. */}
         {sub.blocks.map((block, i) => (
-          <BlockView key={i} block={block} />
+          <div
+            key={i}
+            id={blockAnchorId(i)}
+            data-block-index={i}
+            style={{ scrollMarginTop: 80 }}
+          >
+            <BlockView block={block} />
+          </div>
         ))}
 
         <p style={{ marginTop: 48, textAlign: "center" }} className="reveal">

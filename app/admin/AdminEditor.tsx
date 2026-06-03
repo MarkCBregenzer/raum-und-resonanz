@@ -10,6 +10,11 @@ import {
   MSG_ACTIVE_SECTION,
   type HomeSectionKey,
 } from "../components/section-map";
+import {
+  MSG_SCROLL_TO_BLOCK,
+  MSG_ACTIVE_BLOCK,
+  blockKey,
+} from "../components/block-sync";
 
 /* AdminEditor
    ------------------------------------------------------------
@@ -92,11 +97,24 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
      Editor-Karte hervor (`is-active`). null = keine Hervorhebung. */
   const [activeSection, setActiveSection] = useState<HomeSectionKey | null>(null);
 
-  // Listener: Bereitschaft + aktive-Sektion-Meldung aus der Vorschau.
+  /* ---------- Editor↔Vorschau-Baustein-Sync (Unterseiten) ----------
+     Schwester zum Sektions-Sync, aber für die Unterseiten-Bausteine im
+     Baum-Editor. `activeBlock` ist der gemeinsame Identitäts-Schlüssel
+     (`blockKey(catSlug, subSlug, blockIndex)`) der zuletzt angeklickten
+     bzw. angesprungenen Block-Karte. null = keine Hervorhebung. */
+  const [activeBlock, setActiveBlock] = useState<string | null>(null);
+
+  // Listener: Bereitschaft + aktive-Sektion/Baustein-Meldung aus der Vorschau.
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
       if (ev.origin !== window.location.origin) return;
-      const data = ev.data as { type?: unknown; key?: unknown } | null;
+      const data = ev.data as {
+        type?: unknown;
+        key?: unknown;
+        catSlug?: unknown;
+        subSlug?: unknown;
+        blockIndex?: unknown;
+      } | null;
       if (typeof data !== "object" || data === null) return;
 
       if (data.type === "rr-preview-ready") {
@@ -113,6 +131,26 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         requestAnimationFrame(() => {
           document
             .querySelector(`[data-card="${key}"]`)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        return;
+      }
+
+      // Vorschau meldet: dieser Unterseiten-Baustein wurde angeklickt →
+      // die passende Block-Karte im Baum hervorheben und ins Bild scrollen.
+      // Schlüssel auf BEIDEN Seiten über `blockKey` bilden (sonst trifft
+      // die Hervorhebung nie).
+      if (
+        data.type === MSG_ACTIVE_BLOCK &&
+        typeof data.catSlug === "string" &&
+        typeof data.subSlug === "string" &&
+        typeof data.blockIndex === "number"
+      ) {
+        const key = blockKey(data.catSlug, data.subSlug, data.blockIndex);
+        setActiveBlock(key);
+        requestAnimationFrame(() => {
+          document
+            .querySelector(`[data-block-key="${key}"]`)
             ?.scrollIntoView({ behavior: "smooth", block: "center" });
         });
         return;
@@ -138,6 +176,21 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
   // Klassen-Helfer für die Editor-Karten: „card" plus optional „is-active".
   const cardClass = (key: HomeSectionKey) =>
     "card" + (activeSection === key ? " is-active" : "");
+
+  /* Klick auf eine Block-Überschrift im Baum-Editor → Vorschau zur
+     Unterseite navigieren und zum Baustein scrollen. Anders als beim
+     Sektions-Sprung ist das ein Seitenwechsel: wir schicken den Pfad
+     (`/catSlug/subSlug`) mit, die Vorschau mountet die Unterseite und
+     scrollt dann zum Anker. Markiert die Block-Karte zugleich lokal als
+     aktiv (gleiche `blockKey`-Bildung wie auf der Empfangsseite). */
+  function jumpToBlock(catSlug: string, subSlug: string, blockIndex: number) {
+    setActiveBlock(blockKey(catSlug, subSlug, blockIndex));
+    if (!previewReady) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: MSG_SCROLL_TO_BLOCK, path: `/${catSlug}/${subSlug}`, blockIndex },
+      window.location.origin,
+    );
+  }
 
   // Bei jedem Content-Update den aktuellen Baum ins Iframe schicken.
   // Erst wenn die Vorschau ready ist (sonst geht das Signal verloren,
@@ -686,6 +739,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         <CategoryTreeEditor
           categories={content.categories}
           setContent={setContent}
+          blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
         />
       </section>
 
