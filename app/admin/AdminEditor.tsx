@@ -114,6 +114,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         catSlug?: unknown;
         subSlug?: unknown;
         blockIndex?: unknown;
+        spy?: unknown;
       } | null;
       if (typeof data !== "object" || data === null) return;
 
@@ -122,24 +123,31 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         return;
       }
 
-      // Vorschau meldet: in dieser Sektion wurde geklickt → Karte
-      // hervorheben und ins Bild scrollen.
+      // `spy === true` heißt: die Meldung kommt vom Scroll-Spy (Vorschau
+      // wurde gescrollt), nicht von einem gezielten Klick. Dann nur sanft
+      // bei Bedarf ins Bild rücken (`nearest`, sofort) statt mittig-smooth —
+      // sonst zuckt das Editor-Panel bei jedem Scroll-Schritt.
+      const spy = data.spy === true;
+      const scrollOpts: ScrollIntoViewOptions = spy
+        ? { behavior: "auto", block: "nearest" }
+        : { behavior: "smooth", block: "center" };
+
+      // Vorschau meldet: diese Sektion ist aktiv (Klick oder Scroll-Spy) →
+      // Karte hervorheben und ins Bild scrollen.
       if (data.type === MSG_ACTIVE_SECTION && typeof data.key === "string") {
         const key = data.key as HomeSectionKey;
         setActiveSection(key);
         // Nach dem Re-Render zur Karte scrollen (im Editor-Panel).
         requestAnimationFrame(() => {
-          document
-            .querySelector(`[data-card="${key}"]`)
-            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+          document.querySelector(`[data-card="${key}"]`)?.scrollIntoView(scrollOpts);
         });
         return;
       }
 
-      // Vorschau meldet: dieser Unterseiten-Baustein wurde angeklickt →
-      // die passende Block-Karte im Baum hervorheben und ins Bild scrollen.
-      // Schlüssel auf BEIDEN Seiten über `blockKey` bilden (sonst trifft
-      // die Hervorhebung nie).
+      // Vorschau meldet: dieser Unterseiten-Baustein ist aktiv (Klick oder
+      // Scroll-Spy) → die passende Block-Karte im Baum hervorheben und ins
+      // Bild scrollen. Schlüssel auf BEIDEN Seiten über `blockKey` bilden
+      // (sonst trifft die Hervorhebung nie).
       if (
         data.type === MSG_ACTIVE_BLOCK &&
         typeof data.catSlug === "string" &&
@@ -149,9 +157,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         const key = blockKey(data.catSlug, data.subSlug, data.blockIndex);
         setActiveBlock(key);
         requestAnimationFrame(() => {
-          document
-            .querySelector(`[data-block-key="${key}"]`)
-            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+          document.querySelector(`[data-block-key="${key}"]`)?.scrollIntoView(scrollOpts);
         });
         return;
       }

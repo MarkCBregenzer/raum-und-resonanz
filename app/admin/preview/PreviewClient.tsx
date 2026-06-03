@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Content, Category, Subpage } from "@/lib/default-content";
 import { SiteHeader } from "../../components/SiteHeader";
 import { SiteFooter } from "../../components/SiteFooter";
@@ -131,6 +131,20 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
   const [hash, setHash] = useState<string>("");
   const [navTick, setNavTick] = useState<number>(0);
 
+  // Scroll-Spy nach einem gezielten Sprung anhalten, bis Mark WIRKLICH selbst
+  // scrollt. Springt der Editor zu einer Sektion/einem Baustein, scrollt die
+  // Vorschau dorthin — landet das Ziel mitten im Aktivierungsband, ragt der
+  // VORHERIGE Eintrag oben noch ins Band und würde als „oberstes Element" die
+  // gerade gesetzte Hervorhebung sofort überschreiben (klaut den Sprung).
+  //
+  // Ein simpler Timer reicht nicht: ein spätes Layout-Shift (Bild/Font lädt
+  // nach) lässt den IntersectionObserver auch Sekunden später nochmal feuern.
+  // Darum halten wir den Spy nach einem Sprung an, bis ein ECHTER Nutzer-
+  // Scroll kommt (Wheel/Touch/Tastatur). Programmatisches Scrollen und
+  // Layout-Shifts lösen keines dieser Events aus — saubere Trennung von
+  // „Editor ist gesprungen" und „Mark scrollt selbst". Siehe Spy-Effekt.
+  const jumpHoldRef = useRef<boolean>(false);
+
   // Einheitlicher Navigations-Helfer. Setzt Pfad + Hash atomar und
   // bumpt den Nav-Zähler, damit Scroll auch bei identischen Werten
   // erneut feuert.
@@ -139,6 +153,20 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
     setHash(nextHash);
     setNavTick((n) => n + 1);
   }
+
+  // Aktuelle Route — einmal berechnet, von Render UND Scroll-Spy genutzt.
+  const route = parseRoute(pathname, content.categories);
+
+  // Zahl der Scroll-Spy-Ziele auf der aktuellen Seite. Startseite hat
+  // sechs feste Sektionen (Wert egal, nur ≠ 0); eine Unterseite hat so
+  // viele Bausteine wie `blocks.length`. Diese Zahl ist die Dependency
+  // des Spy-Effekts: Er baut den Observer NUR neu, wenn sich die Menge
+  // der Ziele ändert (Seitenwechsel oder Baustein hinzu/entfernt) — NICHT
+  // bei jedem Tastendruck (da ändert sich `content`, aber nicht die
+  // Struktur). Sonst würde der Observer beim Tippen ständig neu aufsetzen
+  // und den Editor anstupsen. Siehe Spy-Effekt unten.
+  const spyTargetCount =
+    route.kind === "subpage" ? route.sub.blocks.length : route.kind === "home" ? 1 : 0;
 
   // postMessage-Brücke zum Editor: Content-Updates entgegennehmen,
   // außerdem dem Editor mitteilen, sobald die Vorschau bereit ist.
@@ -160,6 +188,9 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
       const data = ev.data as Record<string, unknown> | null;
       if (data && data.type === MSG_SCROLL_TO && typeof data.sectionId === "string") {
         navigate("/", "#" + data.sectionId);
+        // Spy anhalten, bis Mark selbst scrollt — sonst klaut das obere
+        // Nachbar-Element die gerade gesetzte Hervorhebung (s. jumpHoldRef).
+        jumpHoldRef.current = true;
         return;
       }
 
@@ -176,6 +207,8 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
         typeof data.blockIndex === "number"
       ) {
         navigate(data.path, "#" + blockAnchorId(data.blockIndex));
+        // Wie oben: Spy bis zum nächsten echten Scroll anhalten.
+        jumpHoldRef.current = true;
         return;
       }
     }
@@ -215,6 +248,133 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
     // doppeltes Feuern.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navTick]);
+
+  /* ---------- Scroll-Spy ----------
+     Beim Klick-Sync meldet die Vorschau ihre aktive Sektion/ihren aktiven
+     Baustein nur, wenn man hineinklickt. Der Scroll-Spy macht dasselbe
+     automatisch beim SCROLLEN: das jeweils oberste sichtbare Ziel wird an
+     den Editor gemeldet, der dieselbe `is-active`-Karte hervorhebt. So
+     wandert die Hervorhebung mit, während Mark durch die Vorschau scrollt.
+
+     Wir setzen `spy: true` in die Nachricht. Der Editor unterscheidet
+     daran: bei einem Klick-Sprung scrollt er die Karte mittig ins Bild
+     (`center`, smooth), beim Scroll-Spy nur sanft bei Bedarf (`nearest`,
+     sofort) — sonst würde das Editor-Panel bei jedem Scroll zucken.
+
+     Auswahlregel: das OBERSTE Element, das ein schmales Aktivierungsband
+     nahe dem oberen Rand schneidet (`rootMargin` unten). Bewusst NICHT
+     „größtes Sichtbarkeits-Verhältnis" — sonst klaut ein hoher Nachbar die
+     Markierung, und ein Klick-Sprung auf einen kurzen Baustein würde sofort
+     vom Spy überschrieben. Mit der Band-Regel bleibt das angesprungene
+     Element oben im Band aktiv. */
+  const lastSpyKeyRef = useRef<string | null>(null);
+
+  // Jump-Hold lösen, sobald Mark WIRKLICH selbst scrollt. Wheel, Touch und
+  // Tastatur sind eindeutig nutzer-initiiert — programmatisches Scrollen
+  // (der Sprung selbst) und Layout-Shifts feuern keines davon. Danach läuft
+  // der Spy normal weiter. `passive: true`, weil wir nichts verhindern.
+  useEffect(() => {
+    function release() {
+      jumpHoldRef.current = false;
+    }
+    window.addEventListener("wheel", release, { passive: true });
+    window.addEventListener("touchmove", release, { passive: true });
+    window.addEventListener("keydown", release);
+    return () => {
+      window.removeEventListener("wheel", release);
+      window.removeEventListener("touchmove", release);
+      window.removeEventListener("keydown", release);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Nur Startseite (Sektionen) und Unterseite (Bausteine) haben Ziele.
+    const selector =
+      route.kind === "home"
+        ? "[data-section]"
+        : route.kind === "subpage"
+          ? "[data-block-index]"
+          : null;
+    if (!selector) return;
+
+    const els = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    if (els.length === 0) return;
+
+    // Menge der aktuell sichtbaren Ziele. Wir wählen daraus immer das
+    // oberste (kleinster `top`-Wert) — klassisches Scroll-Spy-Muster.
+    const visible = new Set<HTMLElement>();
+
+    function emitActive() {
+      // Nach einem gezielten Sprung schweigt der Spy, bis Mark selbst scrollt
+      // (s. jumpHoldRef) — sonst überschreibt ein spätes Observer-Feuern die
+      // gerade gesetzte Hervorhebung.
+      if (jumpHoldRef.current) return;
+      // Zwischen zwei Zielen (nichts im Band): alte Auswahl halten, nicht
+      // löschen — sonst flackert die Hervorhebung beim Scrollen.
+      if (visible.size === 0) return;
+      let topEl: HTMLElement | null = null;
+      let topY = Infinity;
+      for (const el of visible) {
+        const y = el.getBoundingClientRect().top;
+        if (y < topY) {
+          topY = y;
+          topEl = el;
+        }
+      }
+      if (!topEl) return;
+
+      if (route.kind === "home") {
+        const sectionId = topEl.dataset.section;
+        if (!sectionId || !SECTION_BY_ID.has(sectionId)) return;
+        const key = SECTION_BY_ID.get(sectionId)!.key;
+        // Dedupe-Wächter in einem Ref (überlebt Observer-Neuaufbau), sonst
+        // würde jeder Neuaufbau dieselbe Sektion erneut melden.
+        if (lastSpyKeyRef.current === "s:" + key) return;
+        lastSpyKeyRef.current = "s:" + key;
+        window.parent?.postMessage(
+          { type: MSG_ACTIVE_SECTION, key, spy: true },
+          window.location.origin,
+        );
+      } else if (route.kind === "subpage") {
+        const blockIndex = Number(topEl.dataset.blockIndex);
+        if (!Number.isInteger(blockIndex)) return;
+        const guard = `b:${route.cat.slug}/${route.sub.slug}/${blockIndex}`;
+        if (lastSpyKeyRef.current === guard) return;
+        lastSpyKeyRef.current = guard;
+        window.parent?.postMessage(
+          {
+            type: MSG_ACTIVE_BLOCK,
+            catSlug: route.cat.slug,
+            subSlug: route.sub.slug,
+            blockIndex,
+            spy: true,
+          },
+          window.location.origin,
+        );
+      }
+    }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) visible.add(e.target as HTMLElement);
+          else visible.delete(e.target as HTMLElement);
+        }
+        emitActive();
+      },
+      // Schmales Band nahe oben: 80px Inset (unter der Pfad-Leiste) bis
+      // -70% — das aktive Ziel ist das, dessen Oberkante das obere Drittel
+      // erreicht. Ein frisch angesprungenes Element sitzt oben im Band und
+      // bleibt darum aktiv.
+      { rootMargin: "-80px 0px -70% 0px", threshold: 0 },
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+    // Dependency bewusst nur [pathname, spyTargetCount] — der Observer
+    // wird NUR neu gebaut, wenn sich die Ziel-Menge ändert, nicht bei jedem
+    // Keystroke. `route` wird im Effekt frisch über die Closure genutzt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, spyTargetCount]);
 
   // Klick-Interceptor. Sitzt am äußersten Container der Vorschau
   // und übernimmt alle <a>-Klicks innerhalb. Wir nutzen
@@ -300,8 +460,6 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
     // Wechsel des Pfads (mit oder ohne Hash).
     navigate(url.pathname, url.hash);
   }
-
-  const route = parseRoute(pathname, content.categories);
 
   return (
     <>
