@@ -43,6 +43,11 @@ type Props = {
   // Ein Bild komplett aus dem Inhalt entfernen (Galerie → „Entfernen").
   // Wirkt global (alle Verwendungen), darum oben im Editor mit Bestätigung.
   onRemoveImage: (url: string) => void;
+  // Darf das Feld geleert werden? Für PFLICHT-Bilder (z. B. das Portrait,
+  // dessen Inhaltstyp nicht nullbar ist) false setzen — dann fehlt der
+  // lokale „Entfernen"-Knopf, und das Feld behält immer einen Wert.
+  // Default true (optionale Bilder).
+  allowClear?: boolean;
 };
 
 /* Eine Bilddatei im Browser auf Web-Größe verkleinern und als JPEG-Blob
@@ -78,7 +83,7 @@ function resizeToJpeg(file: File): Promise<Blob> {
   });
 }
 
-export function ImageField({ label, value, onChange, galleryImages, onRemoveImage }: Props) {
+export function ImageField({ label, value, onChange, galleryImages, onRemoveImage, allowClear = true }: Props) {
   // Hervorhebung, während eine Datei über das Feld gezogen wird.
   const [drag, setDrag] = useState(false);
   // Läuft gerade ein Upload? Sperrt die Buttons und zeigt einen Hinweis.
@@ -168,7 +173,7 @@ export function ImageField({ label, value, onChange, galleryImages, onRemoveImag
             >
               {value ? "Bild ändern" : "Bild wählen"}
             </button>
-            {value && (
+            {value && allowClear && (
               <button
                 type="button"
                 className="btn ghost sm danger"

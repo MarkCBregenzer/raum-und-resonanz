@@ -70,7 +70,14 @@ export function WelcomeSection({ data }: { data: Home["welcome"] }) {
           <p className="sign">{data.sign}</p>
         </div>
         <div className="welcome-media reveal">
-          <MediaSlot placeholder="Stimmungsbild · Praxisraum, Licht, Hände" />
+          {/* Willkommens-Bild aus dem Inhalt. Ohne gesetztes Bild zeigt
+              MediaSlot den Platzhalter. `?? undefined`, weil das Feld
+              `string | null` ist, MediaSlot aber `string | undefined` will. */}
+          <MediaSlot
+            src={data.image ?? undefined}
+            alt="Willkommens-Bild der Praxis"
+            placeholder="Stimmungsbild · Praxisraum, Licht, Hände"
+          />
         </div>
       </div>
     </section>

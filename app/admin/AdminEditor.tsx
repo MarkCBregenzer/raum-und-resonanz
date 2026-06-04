@@ -9,6 +9,7 @@ import {
   isUsedAsPortrait,
 } from "@/lib/gallery";
 import { CategoryTreeEditor } from "./CategoryTreeEditor";
+import { ImageField } from "./ImageField";
 import {
   SECTION_BY_KEY,
   MSG_SCROLL_TO,
@@ -737,6 +738,15 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
             onChange={(e) => updateWelcome("sign", e.target.value)}
           />
         </Field>
+        {/* Willkommens-Bild (optional). Nullbar → normaler „Entfernen"-Knopf.
+            Galerie-Auswahl + globales Entfernen wie bei allen Bildfeldern. */}
+        <ImageField
+          label="Willkommens-Bild (optional)"
+          value={welcome.image}
+          onChange={(v) => updateWelcome("image", v)}
+          galleryImages={galleryImages}
+          onRemoveImage={handleRemoveImage}
+        />
       </section>
 
       {/* ---------- Methoden ---------- */}
@@ -830,6 +840,20 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
             />
           </Field>
         ))}
+        {/* Portrait. PFLICHT-Bild (Inhaltstyp `string`, nicht nullbar): kein
+            lokaler „Entfernen"-Knopf (allowClear=false), und onChange schreibt
+            nur echte Werte — ein null aus dem Feld käme hier ohnehin nie an.
+            Tauschen geht jederzeit über Galerie/Upload. */}
+        <ImageField
+          label="Portrait (Foto von Kathrin)"
+          value={about.portrait}
+          onChange={(v) => {
+            if (v) updateAbout("portrait", v);
+          }}
+          galleryImages={galleryImages}
+          onRemoveImage={handleRemoveImage}
+          allowClear={false}
+        />
       </section>
 
       {/* ---------- Stille / Calm ---------- */}
