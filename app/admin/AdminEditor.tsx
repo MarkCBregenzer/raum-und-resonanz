@@ -216,15 +216,27 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
 
   /* ---------- Aktuelle Seite bestimmen ----------
      Aus dem von der Vorschau gemeldeten Pfad leiten wir ab, welche Karten
-     der Editor zeigt. „/" → Startseite. „/<kat>" und „/<kat>/<unter>" →
-     die passende Kategorie (Slice 1: Unterseiten liegen noch in der
-     Kategorie-Karte; die feinere Auftrennung folgt in Slice 2). Findet
-     sich keine Kategorie, fallen wir auf die Startseite zurück. */
+     der Editor zeigt. „/" → Startseite. „/<kat>" → Kategorie-Übersicht,
+     „/<kat>/<unter>" → eine einzelne Unterseite.
+
+     Slice 2 (feinere Auftrennung): Wir bestimmen zusätzlich die aktive
+     Unterseite. Steht die Vorschau auf einer Unterseite, zeigt der Editor
+     NUR deren Felder (Titel, Intro, Bausteine); auf der Kategorie-Übersicht
+     dagegen die Kategorie-Felder + die Übersichts-Felder aller Unterseiten
+     (Label, Slug, Teaser, Karten-Bild). So bearbeitet man jedes Feld genau
+     dort, wo die Vorschau es zeigt. Findet sich keine Kategorie, fallen wir
+     auf die Startseite zurück; ein unbekannter Unterseiten-Slug (z. B. mitten
+     im Umbenennen) fällt sauber auf die Kategorie-Übersicht zurück. */
   const pathParts = pagePath.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
   const isHome = pathParts.length === 0;
   const activeCat = isHome
     ? null
     : content.categories.find((c) => c.slug === pathParts[0]) ?? null;
+  // Unterseite nur, wenn der Pfad zwei Segmente hat UND der Slug passt.
+  const activeSub =
+    activeCat && pathParts.length === 2
+      ? activeCat.children.find((s) => s.slug === pathParts[1]) ?? null
+      : null;
   // Ohne passende Kategorie (und nicht Startseite) zeigen wir die Startseite.
   const showHome = isHome || activeCat === null;
 
@@ -785,16 +797,21 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           Editor für den Unterseiten-Baum. Sichtbar nur, wenn die Vorschau
           auf einer Kategorie- oder Unterseite steht (`!showHome`). Über
           `activeCatId` zeigt der Baum genau die Kategorie der aktuellen
-          Vorschau-Seite — der Editor folgt damit der Vorschau. (Slice 2
-          trennt zusätzlich Kategorie-Übersicht von einzelner Unterseite.) */}
+          Vorschau-Seite; über `activeSubId` schaltet er weiter um zwischen
+          Kategorie-Übersicht und einzelner Unterseite (Slice 2). Die
+          Überschrift zeigt als Brotkrümel, wo man steht. */}
       <div className="editor-group" hidden={showHome}>
         <h2 className="editor-group-title">
           {activeCat ? activeCat.navLabel : "Kategorie"}
+          {activeSub && (
+            <span className="crumb"> › {activeSub.navLabel}</span>
+          )}
         </h2>
         <section className="card wide">
           <CategoryTreeEditor
             categories={content.categories}
             activeCatId={activeCat?.id ?? null}
+            activeSubId={activeSub?.id ?? null}
             setContent={setContent}
             blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
           />
@@ -893,6 +910,13 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           padding-bottom: 6px;
           border-bottom: 2px solid rgba(94, 51, 112, 0.16);
           max-width: 820px;
+        }
+        /* Brotkrümel-Teil der Gruppen-Überschrift (Kategorie › Unterseite):
+           etwas leiser als der Kategorie-Name, damit die Hierarchie lesbar
+           bleibt. */
+        .editor-group-title .crumb {
+          color: #6A5A72;
+          font-weight: 500;
         }
         .btn {
           padding: 10px 18px; font-size: 0.98rem; border-radius: 999px;

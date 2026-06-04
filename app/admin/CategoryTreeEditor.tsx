@@ -60,6 +60,12 @@ type Props = {
      Der Editor folgt der Vorschau, daher ist im Normalbetrieb genau eine
      Kategorie gesetzt. */
   activeCatId: string | null;
+  /* Welche Unterseite der Editor gerade einzeln zeigen soll (Slice 2).
+     null = Kategorie-Übersicht: Kategorie-Felder + Übersichts-Felder
+     aller Unterseiten (Label, Slug, Teaser, Karten-Bild). Gesetzt = nur
+     diese eine Unterseite mit ihren Detail-Feldern (Titel, Intro,
+     Bausteine). Folgt der Vorschau, genau wie `activeCatId`. */
+  activeSubId: string | null;
   setContent: SetContent;
   blockSync: BlockSync;
 };
@@ -92,7 +98,7 @@ function slugify(s: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-export function CategoryTreeEditor({ categories, activeCatId, setContent, blockSync }: Props) {
+export function CategoryTreeEditor({ categories, activeCatId, activeSubId, setContent, blockSync }: Props) {
   /* ---------- Kategorie-Operationen ---------- */
 
   function updateCategory<K extends keyof Category>(
@@ -331,6 +337,7 @@ export function CategoryTreeEditor({ categories, activeCatId, setContent, blockS
             category={cat}
             catIdx={catIdx}
             catCount={categories.length}
+            activeSubId={activeSubId}
             onUpdateCategory={updateCategory}
             onRemoveCategory={removeCategory}
             onMoveCategory={moveCategory}
@@ -505,6 +512,9 @@ type CategoryCardProps = {
   category: Category;
   catIdx: number;
   catCount: number;
+  // Slice 2: gesetzt = nur diese Unterseite im Detail zeigen; null =
+  // Kategorie-Übersicht (Kategorie-Felder + alle Unterseiten kompakt).
+  activeSubId: string | null;
   onUpdateCategory: <K extends keyof Category>(
     catIdx: number,
     key: K,
@@ -543,107 +553,133 @@ type CategoryCardProps = {
 };
 
 function CategoryCard(props: CategoryCardProps) {
-  const { category: cat, catIdx, catCount } = props;
+  const { category: cat, catIdx, catCount, activeSubId } = props;
+
+  // Slice 2: Steht die Vorschau auf einer einzelnen Unterseite, zeigen wir
+  // nur diese — die Kategorie-Felder, die übrigen Unterseiten und der
+  // „Unterseite hinzufügen"-Knopf treten zurück. Auf der Kategorie-Übersicht
+  // (`detail === false`) bleibt die volle Verwaltungsansicht.
+  const detail = activeSubId !== null;
+
   return (
     // `id` als Sprungziel für die Editor-Navigation (s. AdminEditor:
     // `grp-cat-<id>`). `scroll-margin-top` hält den Sprung unter der
     // klebrigen Kopfleiste + Nav-Pillen.
     <div className="tree-cat" id={"grp-cat-" + cat.id}>
 
-      <div className="tree-row">
-        <p className="tree-label">
-          Kategorie {catIdx + 1} · /{cat.slug || "…"}
-        </p>
-        <div className="tree-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={catIdx === 0}
-            onClick={() => props.onMoveCategory(catIdx, -1)}
-            aria-label="Kategorie nach oben"
-            title="Nach oben"
-          >
-            ▲
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={catIdx === catCount - 1}
-            onClick={() => props.onMoveCategory(catIdx, 1)}
-            aria-label="Kategorie nach unten"
-            title="Nach unten"
-          >
-            ▼
-          </button>
-          <button
-            type="button"
-            className="icon-btn danger"
-            onClick={() => props.onRemoveCategory(catIdx)}
-            aria-label="Kategorie löschen"
-            title="Kategorie löschen"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+      {/* Kategorie-Kopf + -Felder: nur in der Übersicht. In der Detail-
+          Ansicht einer Unterseite wären sie Ballast (man bearbeitet ja
+          gerade die Unterseite, nicht die Kategorie). */}
+      {!detail && (
+        <>
+          <div className="tree-row">
+            <p className="tree-label">
+              Kategorie {catIdx + 1} · /{cat.slug || "…"}
+            </p>
+            <div className="tree-actions">
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={catIdx === 0}
+                onClick={() => props.onMoveCategory(catIdx, -1)}
+                aria-label="Kategorie nach oben"
+                title="Nach oben"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={catIdx === catCount - 1}
+                onClick={() => props.onMoveCategory(catIdx, 1)}
+                aria-label="Kategorie nach unten"
+                title="Nach unten"
+              >
+                ▼
+              </button>
+              <button
+                type="button"
+                className="icon-btn danger"
+                onClick={() => props.onRemoveCategory(catIdx)}
+                aria-label="Kategorie löschen"
+                title="Kategorie löschen"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
 
-      <div className="row-2">
-        <Field label="Label in der Navigation">
-          <input
-            type="text"
-            value={cat.navLabel}
-            onChange={(e) =>
-              props.onUpdateCategory(catIdx, "navLabel", e.target.value)
-            }
+          <div className="row-2">
+            <Field label="Label in der Navigation">
+              <input
+                type="text"
+                value={cat.navLabel}
+                onChange={(e) =>
+                  props.onUpdateCategory(catIdx, "navLabel", e.target.value)
+                }
+              />
+            </Field>
+            <Field label="Slug (URL-Teil, z. B. „aurachirurgie“)">
+              <input
+                type="text"
+                value={cat.slug}
+                onChange={(e) =>
+                  props.onUpdateCategory(catIdx, "slug", e.target.value)
+                }
+              />
+            </Field>
+          </div>
+          <Field label="Seitentitel (Überschrift auf der Übersicht)">
+            <input
+              type="text"
+              value={cat.title}
+              onChange={(e) =>
+                props.onUpdateCategory(catIdx, "title", e.target.value)
+              }
+            />
+          </Field>
+
+          <p className="tree-sub-section-label">Unterseiten</p>
+        </>
+      )}
+
+      {/* Unterseiten. In der Übersicht ALLE (kompakt: nur die Felder, die
+          die Übersichts-Seite zeigt). In der Detail-Ansicht NUR die aktive
+          Unterseite (voll: Titel, Intro, Bausteine). Wichtig: wir filtern
+          per `return null`, damit `subIdx` der echte Index in cat.children
+          bleibt — alle Update-/Move-/Remove-Operationen rechnen damit. */}
+      {cat.children.map((sub, subIdx) => {
+        if (detail && sub.id !== activeSubId) return null;
+        return (
+          <SubpageCard
+            key={sub.id}
+            subpage={sub}
+            catIdx={catIdx}
+            subIdx={subIdx}
+            subCount={cat.children.length}
+            catSlug={cat.slug}
+            mode={detail ? "detail" : "overview"}
+            onUpdateSubpage={props.onUpdateSubpage}
+            onRemoveSubpage={props.onRemoveSubpage}
+            onMoveSubpage={props.onMoveSubpage}
+            onUpdateBlock={props.onUpdateBlock}
+            onAddBlock={props.onAddBlock}
+            onRemoveBlock={props.onRemoveBlock}
+            onMoveBlock={props.onMoveBlock}
+            blockSync={props.blockSync}
           />
-        </Field>
-        <Field label="Slug (URL-Teil, z. B. „aurachirurgie“)">
-          <input
-            type="text"
-            value={cat.slug}
-            onChange={(e) =>
-              props.onUpdateCategory(catIdx, "slug", e.target.value)
-            }
-          />
-        </Field>
-      </div>
-      <Field label="Seitentitel (Überschrift auf der Übersicht)">
-        <input
-          type="text"
-          value={cat.title}
-          onChange={(e) =>
-            props.onUpdateCategory(catIdx, "title", e.target.value)
-          }
-        />
-      </Field>
+        );
+      })}
 
-      <p className="tree-sub-section-label">Unterseiten</p>
-      {cat.children.map((sub, subIdx) => (
-        <SubpageCard
-          key={sub.id}
-          subpage={sub}
-          catIdx={catIdx}
-          subIdx={subIdx}
-          subCount={cat.children.length}
-          catSlug={cat.slug}
-          onUpdateSubpage={props.onUpdateSubpage}
-          onRemoveSubpage={props.onRemoveSubpage}
-          onMoveSubpage={props.onMoveSubpage}
-          onUpdateBlock={props.onUpdateBlock}
-          onAddBlock={props.onAddBlock}
-          onRemoveBlock={props.onRemoveBlock}
-          onMoveBlock={props.onMoveBlock}
-          blockSync={props.blockSync}
-        />
-      ))}
-
-      <button
-        type="button"
-        className="btn ghost"
-        onClick={() => props.onAddSubpage(catIdx)}
-      >
-        + Unterseite hinzufügen
-      </button>
+      {!detail && (
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => props.onAddSubpage(catIdx)}
+        >
+          + Unterseite hinzufügen
+        </button>
+      )}
     </div>
   );
 }
@@ -658,6 +694,13 @@ type SubpageCardProps = {
   subIdx: number;
   subCount: number;
   catSlug: string;
+  /* Slice 2 — welche Felder die Karte zeigt:
+     "overview" = Struktur + Übersichts-Felder (Label, Slug, Teaser,
+                  Karten-Bild) + Umsortieren/Löschen. Spiegelt die
+                  Kategorie-Übersichts-Seite.
+     "detail"   = die einzelne Unterseite (Titel, Intro, Bausteine).
+                  Spiegelt die Unterseiten-Seite. */
+  mode: "overview" | "detail";
   onUpdateSubpage: CategoryCardProps["onUpdateSubpage"];
   onRemoveSubpage: CategoryCardProps["onRemoveSubpage"];
   onMoveSubpage: CategoryCardProps["onMoveSubpage"];
@@ -669,7 +712,8 @@ type SubpageCardProps = {
 };
 
 function SubpageCard(props: SubpageCardProps) {
-  const { subpage: sub, catIdx, subIdx, subCount, catSlug } = props;
+  const { subpage: sub, catIdx, subIdx, subCount, catSlug, mode } = props;
+  const detail = mode === "detail";
   return (
     // `id="grp-sub-<sub.id>"` ist das Sprungziel der Unterseiten-Pille in der
     // Editor-Navigation (siehe AdminEditor `navItems` → `subpages`).
@@ -679,26 +723,33 @@ function SubpageCard(props: SubpageCardProps) {
           Unterseite {subIdx + 1} · /{catSlug || "…"}/{sub.slug || "…"}
         </p>
         <div className="tree-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={subIdx === 0}
-            onClick={() => props.onMoveSubpage(catIdx, subIdx, -1)}
-            aria-label="Unterseite nach oben"
-            title="Nach oben"
-          >
-            ▲
-          </button>
-          <button
-            type="button"
-            className="icon-btn"
-            disabled={subIdx === subCount - 1}
-            onClick={() => props.onMoveSubpage(catIdx, subIdx, 1)}
-            aria-label="Unterseite nach unten"
-            title="Nach unten"
-          >
-            ▼
-          </button>
+          {/* Umsortieren nur in der Übersicht — in der Detail-Ansicht sind
+              die Geschwister-Unterseiten ausgeblendet, „nach oben/unten"
+              hätte keinen sichtbaren Bezug. Löschen bleibt in beiden. */}
+          {!detail && (
+            <>
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={subIdx === 0}
+                onClick={() => props.onMoveSubpage(catIdx, subIdx, -1)}
+                aria-label="Unterseite nach oben"
+                title="Nach oben"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                className="icon-btn"
+                disabled={subIdx === subCount - 1}
+                onClick={() => props.onMoveSubpage(catIdx, subIdx, 1)}
+                aria-label="Unterseite nach unten"
+                title="Nach unten"
+              >
+                ▼
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="icon-btn danger"
@@ -711,93 +762,106 @@ function SubpageCard(props: SubpageCardProps) {
         </div>
       </div>
 
-      <div className="row-2">
-        <Field label="Label in der Navigation">
-          <input
-            type="text"
-            value={sub.navLabel}
-            onChange={(e) =>
-              props.onUpdateSubpage(catIdx, subIdx, "navLabel", e.target.value)
-            }
+      {/* ----- Übersichts-Felder ----- (Struktur + was die Kategorie-
+          Übersicht zeigt: Label, Slug, Teaser, Karten-Bild) */}
+      {!detail && (
+        <>
+          <div className="row-2">
+            <Field label="Label in der Navigation">
+              <input
+                type="text"
+                value={sub.navLabel}
+                onChange={(e) =>
+                  props.onUpdateSubpage(catIdx, subIdx, "navLabel", e.target.value)
+                }
+              />
+            </Field>
+            <Field label="Slug (URL-Teil)">
+              <input
+                type="text"
+                value={sub.slug}
+                onChange={(e) =>
+                  props.onUpdateSubpage(catIdx, subIdx, "slug", e.target.value)
+                }
+              />
+            </Field>
+          </div>
+          <Field label="Teaser (kurzer Satz auf der Übersicht)">
+            <textarea
+              rows={2}
+              value={sub.teaser}
+              onChange={(e) =>
+                props.onUpdateSubpage(catIdx, subIdx, "teaser", e.target.value)
+              }
+            />
+          </Field>
+          <ImageField
+            label="Karten-Bild (optional)"
+            value={sub.cardImage ?? null}
+            onChange={(v) => props.onUpdateSubpage(catIdx, subIdx, "cardImage", v)}
           />
-        </Field>
-        <Field label="Slug (URL-Teil)">
-          <input
-            type="text"
-            value={sub.slug}
-            onChange={(e) =>
-              props.onUpdateSubpage(catIdx, subIdx, "slug", e.target.value)
-            }
-          />
-        </Field>
-      </div>
-      <Field label="Seitentitel (große Überschrift)">
-        <input
-          type="text"
-          value={sub.title}
-          onChange={(e) =>
-            props.onUpdateSubpage(catIdx, subIdx, "title", e.target.value)
-          }
-        />
-      </Field>
-      <Field label="Teaser (kurzer Satz auf der Übersicht)">
-        <textarea
-          rows={2}
-          value={sub.teaser}
-          onChange={(e) =>
-            props.onUpdateSubpage(catIdx, subIdx, "teaser", e.target.value)
-          }
-        />
-      </Field>
-      <ImageField
-        label="Karten-Bild (optional)"
-        value={sub.cardImage ?? null}
-        onChange={(v) => props.onUpdateSubpage(catIdx, subIdx, "cardImage", v)}
-      />
-      <Field label="Intro-Absatz (oben auf der Unterseite)">
-        <textarea
-          rows={3}
-          value={sub.intro}
-          onChange={(e) =>
-            props.onUpdateSubpage(catIdx, subIdx, "intro", e.target.value)
-          }
-        />
-      </Field>
+        </>
+      )}
 
-      <p className="tree-sub-section-label">Inhaltsblöcke</p>
-      {sub.blocks.map((block, blockIdx) => (
-        <BlockCard
-          key={blockIdx}
-          block={block}
-          catIdx={catIdx}
-          subIdx={subIdx}
-          blockIdx={blockIdx}
-          blockCount={sub.blocks.length}
-          catSlug={catSlug}
-          subSlug={sub.slug}
-          onUpdateBlock={props.onUpdateBlock}
-          onRemoveBlock={props.onRemoveBlock}
-          onMoveBlock={props.onMoveBlock}
-          blockSync={props.blockSync}
-        />
-      ))}
+      {/* ----- Detail-Felder ----- (was die Unterseiten-Seite zeigt:
+          großer Titel, Intro, Inhaltsblöcke) */}
+      {detail && (
+        <>
+          <Field label="Seitentitel (große Überschrift)">
+            <input
+              type="text"
+              value={sub.title}
+              onChange={(e) =>
+                props.onUpdateSubpage(catIdx, subIdx, "title", e.target.value)
+              }
+            />
+          </Field>
+          <Field label="Intro-Absatz (oben auf der Unterseite)">
+            <textarea
+              rows={3}
+              value={sub.intro}
+              onChange={(e) =>
+                props.onUpdateSubpage(catIdx, subIdx, "intro", e.target.value)
+              }
+            />
+          </Field>
 
-      <div className="add-row">
-        <button
-          type="button"
-          className="btn ghost"
-          onClick={() => props.onAddBlock(catIdx, subIdx, "text")}
-        >
-          + Text-Block
-        </button>
-        <button
-          type="button"
-          className="btn ghost"
-          onClick={() => props.onAddBlock(catIdx, subIdx, "image")}
-        >
-          + Bild-Block
-        </button>
-      </div>
+          <p className="tree-sub-section-label">Inhaltsblöcke</p>
+          {sub.blocks.map((block, blockIdx) => (
+            <BlockCard
+              key={blockIdx}
+              block={block}
+              catIdx={catIdx}
+              subIdx={subIdx}
+              blockIdx={blockIdx}
+              blockCount={sub.blocks.length}
+              catSlug={catSlug}
+              subSlug={sub.slug}
+              onUpdateBlock={props.onUpdateBlock}
+              onRemoveBlock={props.onRemoveBlock}
+              onMoveBlock={props.onMoveBlock}
+              blockSync={props.blockSync}
+            />
+          ))}
+
+          <div className="add-row">
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => props.onAddBlock(catIdx, subIdx, "text")}
+            >
+              + Text-Block
+            </button>
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => props.onAddBlock(catIdx, subIdx, "image")}
+            >
+              + Bild-Block
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
