@@ -174,7 +174,13 @@ img { max-width: 100%; display: block; }
   opacity: 0;
   transform: translateY(26px);
   transition: opacity 1.1s var(--ease), transform 1.1s var(--ease);
-  will-change: opacity, transform;
+  /* KEIN dauerhaftes `will-change: opacity, transform`: das zwang den
+     Browser, für ALLE Reveal-Elemente (hier 17) permanent eigene
+     Kompositor-Ebenen vorzuhalten. Bei schnellem Scrollen entsteht so ein
+     Paint-/Kompositor-Stau, der u. a. den sticky Header kurz „abfallen"
+     lassen kann. will-change ist als KURZ­zeitiger Hinweis gedacht, nicht
+     als Dauerzustand — ohne ihn entscheidet der Browser selbst und hält
+     die Ebenenzahl gering. */
 }
 .reveal.is-visible { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -313,6 +319,21 @@ img { max-width: 100%; display: block; }
   transform: translateY(-4px);
   transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
   z-index: 50;
+}
+/* Unsichtbare „Hover-Brücke" über der 6px-Lücke zwischen Trigger und Panel.
+   Ohne sie verliert der Cursor beim Weg vom Link nach unten ins Menü den
+   :hover (er ist kurz über LEEREM Raum) → das Aufklapp-Menü „fällt" sofort
+   wieder zu. Die Brücke ist ein Kind des Panels (also innerhalb der
+   has-dropdown-Liste) und hält den Hover lückenlos. Sie deckt die Lücke
+   plus etwas Puffer ab und ist nur aktiv, wenn das Panel offen ist
+   (pointer-events wird vom Panel geerbt). */
+.nav-dropdown::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 0;
+  right: 0;
+  height: 12px;
 }
 .nav-links li.has-dropdown:hover > .nav-dropdown,
 .nav-links li.has-dropdown:focus-within > .nav-dropdown {

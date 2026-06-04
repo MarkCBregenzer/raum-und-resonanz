@@ -18,6 +18,7 @@ import {
   SECTION_BY_ID,
   MSG_SCROLL_TO,
   MSG_ACTIVE_SECTION,
+  MSG_ACTIVE_PAGE,
 } from "../../components/section-map";
 import {
   MSG_SCROLL_TO_BLOCK,
@@ -234,6 +235,18 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
 
     return () => window.removeEventListener("message", onMessage);
   }, []);
+
+  /* Vorschau → Editor: bei jedem Seitenwechsel den aktuellen Pfad melden.
+     So folgt der Editor der Vorschau und blendet genau die Karten dieser
+     Seite ein. Feuert auch beim ersten Mount (pathname „/"), damit der
+     Editor von Anfang an die richtige Seite zeigt. Die Vorschau ist der
+     alleinige Seiten-Navigator (über ihr eigenes Menü/ihre Links). */
+  useEffect(() => {
+    window.parent?.postMessage(
+      { type: MSG_ACTIVE_PAGE, path: pathname },
+      window.location.origin,
+    );
+  }, [pathname]);
 
   // Bei jedem Nav-Klick: zum Anker oder ganz nach oben scrollen.
   // Effect-Trigger ist bewusst `navTick` (steigt mit jedem Klick),

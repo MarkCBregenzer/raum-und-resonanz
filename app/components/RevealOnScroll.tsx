@@ -19,6 +19,15 @@ export function RevealOnScroll() {
       els.forEach((el) => el.classList.add("is-visible"));
       return;
     }
+    // WICHTIG: KEIN negativer unterer rootMargin.
+    // Ein `-8%` am unteren Rand zieht die Auslöse-Linie 8% nach oben. Für
+    // Elemente am ALLERLETZTEN Seitenende (Kontakt-Sektion, Footer) ist das
+    // fatal: die Seite lässt sich nicht weit genug scrollen, um sie über
+    // diese Linie zu heben — sie erreichen die 12%-Schwelle nie und bleiben
+    // dauerhaft auf `opacity: 0`. Genau das war der „leere Seite"-Fehler:
+    // unten blieb alles unsichtbar. Ohne Inset reicht der normale Viewport-
+    // Rand; die untersten Elemente sind beim Scrollen ans Seitenende voll
+    // sichtbar und werden zuverlässig eingeblendet.
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((en) => {
@@ -28,7 +37,7 @@ export function RevealOnScroll() {
           }
         });
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+      { threshold: 0.12, rootMargin: "0px" },
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();

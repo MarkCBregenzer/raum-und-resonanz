@@ -8,6 +8,7 @@ import {
   SECTION_BY_KEY,
   MSG_SCROLL_TO,
   MSG_ACTIVE_SECTION,
+  MSG_ACTIVE_PAGE,
   type HomeSectionKey,
 } from "../components/section-map";
 import {
@@ -91,6 +92,13 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
   const [previewReady, setPreviewReady] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
 
+  /* ---------- Aktuelle Seite (Editor folgt der Vorschau) ----------
+     Der Editor hat keine eigene Struktur-Navigation mehr. Stattdessen
+     meldet die Vorschau bei jedem Seitenwechsel ihren Pfad (MSG_ACTIVE_PAGE);
+     wir merken ihn hier und blenden genau die Karten dieser Seite ein.
+     Default „/" = Startseite, bis die erste Meldung kommt. */
+  const [pagePath, setPagePath] = useState<string>("/");
+
   /* ---------- Editor↔Vorschau-Sektions-Sync ----------
      `activeSection` ist die zuletzt in der Vorschau angeklickte (oder im
      Editor angesprungene) Startseiten-Sektion. Sie hebt die passende
@@ -115,11 +123,19 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         subSlug?: unknown;
         blockIndex?: unknown;
         spy?: unknown;
+        path?: unknown;
       } | null;
       if (typeof data !== "object" || data === null) return;
 
       if (data.type === "rr-preview-ready") {
         setPreviewReady(true);
+        return;
+      }
+
+      // Vorschau meldet ihren aktuellen ganzen Seitenpfad → Editor blendet
+      // die Karten dieser Seite ein (Editor folgt der Vorschau).
+      if (data.type === MSG_ACTIVE_PAGE && typeof data.path === "string") {
+        setPagePath(data.path);
         return;
       }
 
@@ -198,24 +214,19 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
     );
   }
 
-  /* ---------- Editor-Navigation (Website-Struktur) ----------
-     Die Editor-Navigation spiegelt die Seitenstruktur: „Startseite" plus je
-     eine Kategorie. Ein Klick scrollt das Editor-Formular zur passenden
-     Gruppe (nicht die Vorschau — dafür gibt es die Karten-/Block-Sprünge).
-     Die Ziel-Gruppen tragen passende `id`s (`grp-home`, `grp-cat-<id>`);
-     `scroll-margin-top` hält den Sprung unter der klebrigen Kopfleiste. */
-  const navItems = [
-    { label: "Startseite", anchor: "grp-home" },
-    ...content.categories.map((cat) => ({
-      label: cat.navLabel || "Kategorie",
-      anchor: "grp-cat-" + cat.id,
-    })),
-  ];
-  function scrollToGroup(anchor: string) {
-    document
-      .getElementById(anchor)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  /* ---------- Aktuelle Seite bestimmen ----------
+     Aus dem von der Vorschau gemeldeten Pfad leiten wir ab, welche Karten
+     der Editor zeigt. „/" → Startseite. „/<kat>" und „/<kat>/<unter>" →
+     die passende Kategorie (Slice 1: Unterseiten liegen noch in der
+     Kategorie-Karte; die feinere Auftrennung folgt in Slice 2). Findet
+     sich keine Kategorie, fallen wir auf die Startseite zurück. */
+  const pathParts = pagePath.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
+  const isHome = pathParts.length === 0;
+  const activeCat = isHome
+    ? null
+    : content.categories.find((c) => c.slug === pathParts[0]) ?? null;
+  // Ohne passende Kategorie (und nicht Startseite) zeigen wir die Startseite.
+  const showHome = isHome || activeCat === null;
 
   // Bei jedem Content-Update den aktuellen Baum ins Iframe schicken.
   // Erst wenn die Vorschau ready ist (sonst geht das Signal verloren,
@@ -488,33 +499,22 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           Formular bekommt die volle Breite. */}
       <div className={"split " + (previewOpen ? "with-preview" : "no-preview")}>
         <div className="form-pane">
-          {/* Editor-Navigation, spiegelt die Website-Struktur (Startseite +
-              Kategorien). Klebt unter der Kopfleiste, damit man von überall
-              im Formular schnell zur gewünschten Gruppe springt. */}
-          <nav className="editor-nav" aria-label="Editor-Navigation">
-            {navItems.map((item) => (
-              <button
-                key={item.anchor}
-                type="button"
-                className="editor-nav-item"
-                onClick={() => scrollToGroup(item.anchor)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </nav>
-
+          {/* Keine eigene Editor-Navigation mehr: der Editor FOLGT der
+              Vorschau. Navigiere rechts in der Vorschau (ihr Menü / ihre
+              Links) — der Editor blendet automatisch die Karten genau dieser
+              Seite ein. */}
           <p className="intro-hint">
-            Der Editor ist wie die Website aufgebaut: zuerst die Startseite mit
-            ihren Abschnitten, danach die Kategorien mit ihren Unterseiten. Beim
-            Tippen aktualisiert sich die Vorschau rechts in Echtzeit.
+            Navigiere rechts in der Vorschau. Der Editor zeigt automatisch die
+            Felder der Seite, die du gerade ansiehst — beim Tippen aktualisiert
+            sich die Vorschau in Echtzeit.
           </p>
 
       {/* ---------- Gruppe: Startseite ----------
-          Bündelt die sechs Startseiten-Abschnitte unter einer Überschrift,
-          damit der Editor dieselbe Gliederung wie die Website hat. Die
-          einzelnen Karten (und ihr `data-card`-Sync) bleiben unverändert. */}
-      <div id="grp-home" className="editor-group">
+          Bündelt die sechs Startseiten-Abschnitte. Sichtbar nur, wenn die
+          Vorschau auf der Startseite steht (`showHome`). `hidden` statt
+          Unmount, damit die Karten gemountet bleiben und Content-Updates
+          weiter sauber durchlaufen. */}
+      <div id="grp-home" className="editor-group" hidden={!showHome}>
         <h2 className="editor-group-title">Startseite</h2>
 
       {/* ---------- Hero ---------- */}
@@ -781,45 +781,31 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       {/* Ende der Startseiten-Gruppe. */}
       </div>
 
-      {/* ---------- Gruppe: Kategorien & Unterseiten (Slice 2b) ----------
-          Editor für den Unterseiten-Baum. Bis hier ließ sich nur die
-          Startseite pflegen — diese Karte schaltet das Bearbeiten der
-          Kategorien (Aurachirurgie, Jin Shin Jyutsu) inkl. ihrer
-          Unterseiten und Inhaltsblöcke frei. Die einzelnen Kategorien
-          tragen `id="grp-cat-<id>"` (im CategoryTreeEditor), damit die
-          Editor-Navigation oben sie direkt anspringen kann. */}
-      <div className="editor-group">
-        <h2 className="editor-group-title">Kategorien & Unterseiten</h2>
+      {/* ---------- Gruppe: Kategorie ----------
+          Editor für den Unterseiten-Baum. Sichtbar nur, wenn die Vorschau
+          auf einer Kategorie- oder Unterseite steht (`!showHome`). Über
+          `activeCatId` zeigt der Baum genau die Kategorie der aktuellen
+          Vorschau-Seite — der Editor folgt damit der Vorschau. (Slice 2
+          trennt zusätzlich Kategorie-Übersicht von einzelner Unterseite.) */}
+      <div className="editor-group" hidden={showHome}>
+        <h2 className="editor-group-title">
+          {activeCat ? activeCat.navLabel : "Kategorie"}
+        </h2>
         <section className="card wide">
           <CategoryTreeEditor
             categories={content.categories}
+            activeCatId={activeCat?.id ?? null}
             setContent={setContent}
             blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
           />
         </section>
       </div>
 
-          <div className="footer-actions">
-            <button onClick={save} className="btn ghost" disabled={busy}>
-              {status.kind === "saving" ? "Speichern…" : "Speichern"}
-            </button>
-            <button
-              onClick={discard}
-              className="btn ghost danger"
-              disabled={busy || !hasUnpublished}
-            >
-              {status.kind === "discarding" ? "Verwerfe…" : "Verwerfen"}
-            </button>
-            <button
-              onClick={publish}
-              className="btn primary"
-              disabled={busy || !hasUnpublished}
-            >
-              {status.kind === "publishing" ? "Veröffentliche…" : "Veröffentlichen"}
-            </button>
-            <PublishPill hasUnpublished={hasUnpublished} />
-            <StatusPill status={status} />
-          </div>
+          {/* Die Aktions-Knöpfe (Speichern/Verwerfen/Veröffentlichen) und die
+              Status-Anzeige leben ausschließlich oben in der sticky .admin-top.
+              Die frühere Wiederholung am Seitenende wurde entfernt — sie war
+              redundant, und die obere Leiste ist beim Scrollen ohnehin
+              dauerhaft sichtbar. */}
         </div>
 
         {/* Live-Vorschau-Pane: lädt /admin/preview im Iframe.
@@ -843,6 +829,21 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </div>
 
       <style>{`
+        /* Dieser Style-Block (ohne jsx-Attribut) ist GLOBAL und lebt nur,
+           solange der Admin-Editor gemountet ist — also nur auf /admin.
+           (Kein wörtliches Style-Tag im Kommentar — das würde im
+           Raw-Text-Element zu einem Hydration-Mismatch führen.)
+
+           Korrektur des Sprung-Versatzes: globals.css setzt
+           html { scroll-padding-top: 100px } für den fixierten Website-Header.
+           Im Admin gibt es diesen Header nicht, sondern nur die schlanke
+           sticky .admin-top (~80px). Auf diese Höhe setzen, damit Karten-
+           Sprünge (Sektion/Baustein) knapp darunter landen statt hinter der
+           Leiste oder unnötig tief (geerbte 100px). Die Vorschau läuft im
+           iframe (eigenes Dokument) und behält ihr eigenes
+           scroll-padding-top — sie ist davon nicht betroffen. */
+        html { scroll-padding-top: 88px; }
+
         .admin-shell {
           min-height: 100vh;
           background: #FBF8F4;
@@ -877,36 +878,12 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           font-size: 0.96rem; font-style: italic;
         }
 
-        /* ---- Editor-Navigation (spiegelt die Website-Struktur) ----
-           Klebt unter der Kopfleiste (.admin-top ist sticky bei top:0).
-           Eine Reihe Pillen: Startseite + je eine Kategorie. */
-        .editor-nav {
-          position: sticky;
-          top: 64px;
-          z-index: 4;
-          display: flex; flex-wrap: wrap; gap: 8px;
-          padding: 10px 0;
-          margin-bottom: 8px;
-          background: #FBF8F4;
-          border-bottom: 1px solid rgba(94, 51, 112, 0.1);
-        }
-        .editor-nav-item {
-          padding: 6px 14px;
-          border-radius: 999px;
-          border: 1px solid rgba(94, 51, 112, 0.25);
-          background: #fff;
-          color: #5E3370;
-          font-family: inherit;
-          font-size: 0.92rem;
-          cursor: pointer;
-          transition: background .15s, border-color .15s;
-        }
-        .editor-nav-item:hover { background: rgba(94, 51, 112, 0.08); }
-
         /* ---- Editor-Gruppen (eine je Website-Bereich) ----
-           scroll-margin-top hält den Sprung der Editor-Navigation unter
-           Kopfleiste + Nav-Pillen, statt randlos oben anzustoßen. */
-        .editor-group { scroll-margin-top: 120px; }
+           Es ist immer nur eine Gruppe sichtbar (die der aktuellen
+           Vorschau-Seite); die anderen sind ausgeblendet. scroll-margin-top
+           hält Karten-Sprünge (Sektion/Baustein) knapp unter der sticky
+           Kopfleiste. */
+        .editor-group { scroll-margin-top: 88px; }
         .editor-group-title {
           font-family: 'Cormorant Garamond', Georgia, serif;
           font-weight: 600;
@@ -1007,11 +984,6 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           text-transform: uppercase;
           color: #9C7544;
         }
-        .footer-actions {
-          max-width: 820px; display: flex; gap: 14px; align-items: center;
-          margin-top: 6px;
-        }
-
         /* ---- Split-Layout: Formular links, Live-Vorschau rechts ----
            Auf großen Screens zwei Spalten; auf kleineren stapeln. Wenn
            die Vorschau ausgeblendet ist, bekommt das Formular die ganze

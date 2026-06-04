@@ -43,7 +43,15 @@ export default function RootLayout({
       className={`${cormorant.variable} ${ebGaramond.variable}`}
       suppressHydrationWarning
     >
-      <body>
+      {/* suppressHydrationWarning auch auf <body>: Browser-Erweiterungen
+          (Grammarly, Passwort-Manager, Dark-Reader …) hängen oft VOR der
+          Hydration eigene Attribute an <body> (z. B. data-gr-ext-installed,
+          cz-shortcut-listen). Server-HTML hat sie nicht, das Client-DOM
+          schon → React meldet „some attributes … didn't match". Die
+          Unterdrückung wirkt nur EINE Ebene tief, deshalb braucht <body>
+          ein eigenes Flag (das von <html> deckt <body> nicht ab). Echte
+          Mismatches in den Kindern bleiben weiterhin sichtbar. */}
+      <body suppressHydrationWarning>
         {children}
         {/* Zugangssperre (Vorschau-Phase) — Passwort-Gate vor Hydration.
            strategy="beforeInteractive" injiziert das <script> direkt ins

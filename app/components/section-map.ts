@@ -53,3 +53,13 @@ export const SECTION_BY_KEY = new Map(HOME_SECTIONS.map((s) => [s.key, s]));
    jeweiligen Dateien — hier nur die neuen Sync-Nachrichten.) */
 export const MSG_SCROLL_TO = "rr-scroll-to" as const; // Editor → Vorschau
 export const MSG_ACTIVE_SECTION = "rr-active-section" as const; // Vorschau → Editor
+
+/* Vorschau → Editor: die Vorschau meldet, welche ganze SEITE sie gerade
+   zeigt (ihr `pathname`). Damit folgt der Editor der Vorschau: er blendet
+   genau die Karten der aktuellen Seite ein („/" → Startseite, „/<kat>" →
+   Kategorie, „/<kat>/<unter>" → Unterseite). Die Vorschau ist damit der
+   alleinige Seiten-Navigator (ihr eigenes Menü); der Editor hat keine
+   eigene Struktur-Navigation mehr. Anders als MSG_ACTIVE_SECTION/
+   MSG_ACTIVE_BLOCK (Position INNERHALB einer Seite) ist das der
+   Seitenwechsel selbst. */
+export const MSG_ACTIVE_PAGE = "rr-active-page" as const;

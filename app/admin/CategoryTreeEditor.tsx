@@ -54,6 +54,12 @@ type BlockSync = {
 
 type Props = {
   categories: Content["categories"];
+  /* Welche Kategorie der Editor gerade zeigen soll (= Kategorie der
+     aktuellen Vorschau-Seite). null = keine spezielle Auswahl: dann den
+     ganzen Baum zeigen (z. B. zum Hinzufügen/Umsortieren von Kategorien).
+     Der Editor folgt der Vorschau, daher ist im Normalbetrieb genau eine
+     Kategorie gesetzt. */
+  activeCatId: string | null;
   setContent: SetContent;
   blockSync: BlockSync;
 };
@@ -86,7 +92,7 @@ function slugify(s: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-export function CategoryTreeEditor({ categories, setContent, blockSync }: Props) {
+export function CategoryTreeEditor({ categories, activeCatId, setContent, blockSync }: Props) {
   /* ---------- Kategorie-Operationen ---------- */
 
   function updateCategory<K extends keyof Category>(
@@ -297,40 +303,55 @@ export function CategoryTreeEditor({ categories, setContent, blockSync }: Props)
     });
   }
 
+  // Im „Editor folgt Vorschau"-Betrieb ist genau eine Kategorie aktiv:
+  // dann zeigen wir nur diese eine Karte (und keine Hinweis-/Add-UI für
+  // den ganzen Baum). Ohne aktive Kategorie (activeCatId === null) bleibt
+  // die vollständige Verwaltungsansicht erhalten.
+  const focused = activeCatId !== null;
+
   return (
     <div className="tree">
-      <p className="tree-hint">
-        Hier pflegst du die Unterseiten-Struktur. Kategorien erscheinen in
-        der Navigation; ihre Unterseiten als Aufklapp-Menü darunter. Die
-        Live-Vorschau rechts folgt deinen Klicks: tippe oben auf eine
-        Kategorie oder eine Unterseite, um sie dort zu öffnen — alle
-        Änderungen aus diesem Editor erscheinen sofort.
-      </p>
+      {!focused && (
+        <p className="tree-hint">
+          Hier pflegst du die Unterseiten-Struktur. Kategorien erscheinen in
+          der Navigation; ihre Unterseiten als Aufklapp-Menü darunter. Die
+          Live-Vorschau rechts folgt deinen Klicks: tippe oben auf eine
+          Kategorie oder eine Unterseite, um sie dort zu öffnen — alle
+          Änderungen aus diesem Editor erscheinen sofort.
+        </p>
+      )}
 
-      {categories.map((cat, catIdx) => (
-        <CategoryCard
-          key={cat.id}
-          category={cat}
-          catIdx={catIdx}
-          catCount={categories.length}
-          onUpdateCategory={updateCategory}
-          onRemoveCategory={removeCategory}
-          onMoveCategory={moveCategory}
-          onUpdateSubpage={updateSubpage}
-          onAddSubpage={addSubpage}
-          onRemoveSubpage={removeSubpage}
-          onMoveSubpage={moveSubpage}
-          onUpdateBlock={updateBlock}
-          onAddBlock={addBlock}
-          onRemoveBlock={removeBlock}
-          onMoveBlock={moveBlock}
-          blockSync={blockSync}
-        />
-      ))}
+      {categories.map((cat, catIdx) => {
+        // catIdx bleibt der Index in der VOLLEN Liste (die Update-/Move-
+        // Operationen rechnen damit) — wir rendern nur die aktive Karte.
+        if (focused && cat.id !== activeCatId) return null;
+        return (
+          <CategoryCard
+            key={cat.id}
+            category={cat}
+            catIdx={catIdx}
+            catCount={categories.length}
+            onUpdateCategory={updateCategory}
+            onRemoveCategory={removeCategory}
+            onMoveCategory={moveCategory}
+            onUpdateSubpage={updateSubpage}
+            onAddSubpage={addSubpage}
+            onRemoveSubpage={removeSubpage}
+            onMoveSubpage={moveSubpage}
+            onUpdateBlock={updateBlock}
+            onAddBlock={addBlock}
+            onRemoveBlock={removeBlock}
+            onMoveBlock={moveBlock}
+            blockSync={blockSync}
+          />
+        );
+      })}
 
-      <button type="button" className="btn ghost add-cat" onClick={addCategory}>
-        + Kategorie hinzufügen
-      </button>
+      {!focused && (
+        <button type="button" className="btn ghost add-cat" onClick={addCategory}>
+          + Kategorie hinzufügen
+        </button>
+      )}
 
       <style>{`
         .tree { display: flex; flex-direction: column; gap: 14px; }
@@ -650,7 +671,9 @@ type SubpageCardProps = {
 function SubpageCard(props: SubpageCardProps) {
   const { subpage: sub, catIdx, subIdx, subCount, catSlug } = props;
   return (
-    <div className="tree-sub">
+    // `id="grp-sub-<sub.id>"` ist das Sprungziel der Unterseiten-Pille in der
+    // Editor-Navigation (siehe AdminEditor `navItems` → `subpages`).
+    <div className="tree-sub" id={"grp-sub-" + sub.id}>
       <div className="tree-row">
         <p className="tree-label">
           Unterseite {subIdx + 1} · /{catSlug || "…"}/{sub.slug || "…"}
