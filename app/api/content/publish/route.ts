@@ -15,6 +15,7 @@
 
    Schutz wie bei /api/content: Proxy + serverseitige Session-Prüfung. */
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sql } from "@/lib/db";
@@ -46,6 +47,14 @@ export async function POST() {
       SET value = EXCLUDED.value,
           updated_at = NOW()
   `;
+
+  // Cache der öffentlichen Seiten verwerfen. Ohne diesen Schritt liefert
+  // Next die zur Build-Zeit statisch vorgerenderten Seiten weiter aus —
+  // die Datenbank ist aktuell, die Live-Seite aber eingefroren. `"layout"`
+  // bedeutet: alles unter dem Wurzel-Layout neu rendern (Startseite,
+  // /<kat>, /<kat>/<unter>), also genau die öffentlichen Routen, die
+  // getContent() lesen. Erst der nächste Aufruf rendert mit frischen Daten.
+  revalidatePath("/", "layout");
 
   return NextResponse.json({ ok: true, published: true, at: new Date().toISOString() });
 }
