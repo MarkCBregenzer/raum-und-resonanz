@@ -659,6 +659,22 @@ img { max-width: 100%; display: block; }
   border-color: rgba(183, 141, 94, 0.4);
 }
 .method-card:hover::before { transform: scaleX(1); }
+/* Karten-Bild als Banner am oberen Kartenrand.
+   Negative Ränder heben das Karten-Padding auf, damit das Foto bis an
+   die Kartenkante reicht (full-bleed). `margin-bottom` schiebt nur die
+   Differenz zwischen Padding und gewünschtem Abstand zur Nummer.
+   Das Karten-`overflow:hidden` rundet die oberen Ecken mit. */
+.method-card .card-media {
+  margin: calc(clamp(30px, 4vw, 52px) * -1) calc(clamp(30px, 4vw, 52px) * -1) 24px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.method-card .card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 .method-card .num {
   font-family: var(--font-display);
   font-style: italic;

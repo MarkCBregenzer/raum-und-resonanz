@@ -75,6 +75,18 @@ export function CategoryView({
         <div className="methods-grid">
           {cat.children.map((sub, i) => (
             <article className="method-card reveal" key={sub.id}>
+              {/* Karten-Bild (optional). Bewusst ein einfaches <img>:
+                  es deckt Data-URLs (Altbestand) UND Blob-URLs gleich
+                  ab, ohne next/image-Host-Konfiguration. `.card-media`
+                  blutet per negativen Rändern bis an die Kartenkante;
+                  das `overflow:hidden` der Karte rundet die oberen Ecken
+                  automatisch mit. */}
+              {sub.cardImage && (
+                <div className="card-media">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={sub.cardImage} alt={sub.navLabel} />
+                </div>
+              )}
               <span className="num">{romanNumeral(i + 1)}</span>
               <h3>{sub.navLabel}</h3>
               <p>{sub.teaser}</p>
