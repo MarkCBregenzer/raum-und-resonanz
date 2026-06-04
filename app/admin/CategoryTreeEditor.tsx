@@ -804,9 +804,32 @@ function SubpageCard(props: SubpageCardProps) {
       )}
 
       {/* ----- Detail-Felder ----- (was die Unterseiten-Seite zeigt:
-          großer Titel, Intro, Inhaltsblöcke) */}
+          großer Titel, Intro, Inhaltsblöcke) plus Umbenennen (Label/Slug).
+          Label/Slug sind strukturell und tauchen auch in der Übersicht auf;
+          wir spiegeln sie hier hinein, damit man eine Unterseite umbenennen
+          kann, ohne erst zur Kategorie-Übersicht zurückzugehen. */}
       {detail && (
         <>
+          <div className="row-2">
+            <Field label="Label in der Navigation">
+              <input
+                type="text"
+                value={sub.navLabel}
+                onChange={(e) =>
+                  props.onUpdateSubpage(catIdx, subIdx, "navLabel", e.target.value)
+                }
+              />
+            </Field>
+            <Field label="Slug (URL-Teil)">
+              <input
+                type="text"
+                value={sub.slug}
+                onChange={(e) =>
+                  props.onUpdateSubpage(catIdx, subIdx, "slug", e.target.value)
+                }
+              />
+            </Field>
+          </div>
           <Field label="Seitentitel (große Überschrift)">
             <input
               type="text"

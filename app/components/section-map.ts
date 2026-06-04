@@ -63,3 +63,14 @@ export const MSG_ACTIVE_SECTION = "rr-active-section" as const; // Vorschau → 
    MSG_ACTIVE_BLOCK (Position INNERHALB einer Seite) ist das der
    Seitenwechsel selbst. */
 export const MSG_ACTIVE_PAGE = "rr-active-page" as const;
+
+/* Editor → Vorschau: „navigiere zu diesem ganzen Pfad". Gegenstück zu
+   MSG_ACTIVE_PAGE und nötig, sobald der Editor eine Seite UMBENENNT: Die
+   Vorschau navigiert per URL-Slug. Ändert man im Editor den Slug der gerade
+   gezeigten Seite, passt der alte Pfad der Vorschau nicht mehr (sie liefe in
+   ihre NotFound-Ansicht) und der Editor verlöre die Seite. Der Editor hält
+   die aktive Seite deshalb über stabile IDs fest und schickt ihr per
+   MSG_GOTO_PATH den neuen kanonischen Pfad, sobald sich der Slug ändert. Die
+   Vorschau übernimmt ihn (wie ein interner Link-Klick) und meldet ihn per
+   MSG_ACTIVE_PAGE zurück — Kreis geschlossen, kein Heraus­fallen. */
+export const MSG_GOTO_PATH = "rr-goto-path" as const;

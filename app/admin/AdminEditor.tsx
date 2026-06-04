@@ -9,6 +9,7 @@ import {
   MSG_SCROLL_TO,
   MSG_ACTIVE_SECTION,
   MSG_ACTIVE_PAGE,
+  MSG_GOTO_PATH,
   type HomeSectionKey,
 } from "../components/section-map";
 import {
@@ -63,6 +64,33 @@ type Status =
 
 type Home = Content["home"];
 
+/* Welche Seite die Vorschau gerade zeigt — über STABILE IDs, nicht über
+   Slugs. Das ist der Kern, der ein Slug-Umbenennen überlebt: Der Editor
+   merkt sich „Kategorie X, Unterseite Y" (per id) und nicht „/x/y" (per
+   slug). Ändert sich der Slug, bleibt die id gleich → die Karte bleibt
+   sichtbar; ein Effekt schickt der Vorschau danach den neuen Pfad. */
+type ActivePage =
+  | { kind: "home" }
+  | { kind: "cat"; catId: string }
+  | { kind: "sub"; catId: string; subId: string };
+
+/* Pfad (von der Vorschau gemeldet) → aktive Seite als IDs auflösen. Pure
+   Funktion: nimmt den aktuellen Inhaltsbaum mit, damit sie auch im nur
+   einmal registrierten message-Listener mit FRISCHEM Content arbeitet
+   (über einen Ref hereingereicht). Unbekannte Kategorie/Unterseite (z. B.
+   mitten im Umbenennen, bevor die Vorschau nachgezogen hat) fällt sauber
+   eine Ebene höher zurück. */
+function resolveActivePage(path: string, content: Content): ActivePage {
+  const parts = path.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
+  if (parts.length === 0) return { kind: "home" };
+  const cat = content.categories.find((c) => c.slug === parts[0]);
+  if (!cat) return { kind: "home" };
+  if (parts.length === 1) return { kind: "cat", catId: cat.id };
+  const sub = cat.children.find((s) => s.slug === parts[1]);
+  if (!sub) return { kind: "cat", catId: cat.id };
+  return { kind: "sub", catId: cat.id, subId: sub.id };
+}
+
 export function AdminEditor({ initialContent, initialPublished, sessionUser }: Props) {
   const [content, setContent] = useState<Content>(initialContent);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -93,11 +121,22 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
   const [previewOpen, setPreviewOpen] = useState(true);
 
   /* ---------- Aktuelle Seite (Editor folgt der Vorschau) ----------
-     Der Editor hat keine eigene Struktur-Navigation mehr. Stattdessen
-     meldet die Vorschau bei jedem Seitenwechsel ihren Pfad (MSG_ACTIVE_PAGE);
-     wir merken ihn hier und blenden genau die Karten dieser Seite ein.
+     Zwei bewusst getrennte Größen:
+     - `pagePath`: der Pfad, den die VORSCHAU gerade zeigt (slug-basiert),
+       gemeldet per MSG_ACTIVE_PAGE.
+     - `activePage`: dieselbe Seite als STABILE IDs. Hängt das Rendering
+       hier auf, nicht am Slug — so überlebt die Anzeige ein Slug-Umbenennen
+       (sonst „fiele" die Karte heraus, weil der alte Slug nicht mehr passt).
+       Ein Effekt (s. „Slug-Sync") schiebt der Vorschau danach den neuen Pfad.
      Default „/" = Startseite, bis die erste Meldung kommt. */
   const [pagePath, setPagePath] = useState<string>("/");
+  const [activePage, setActivePage] = useState<ActivePage>({ kind: "home" });
+
+  /* Frischer Content für den nur EINMAL registrierten message-Listener:
+     dessen Closure würde `content` sonst einfrieren. Wir spiegeln den
+     aktuellen Stand in einen Ref und lösen darüber Pfade → IDs auf. */
+  const contentRef = useRef(content);
+  contentRef.current = content;
 
   /* ---------- Editor↔Vorschau-Sektions-Sync ----------
      `activeSection` ist die zuletzt in der Vorschau angeklickte (oder im
@@ -133,9 +172,13 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       }
 
       // Vorschau meldet ihren aktuellen ganzen Seitenpfad → Editor blendet
-      // die Karten dieser Seite ein (Editor folgt der Vorschau).
+      // die Karten dieser Seite ein (Editor folgt der Vorschau). Wir merken
+      // uns BEIDES: den rohen Pfad (für den Slug-Sync-Vergleich) und die
+      // aufgelöste Seite als stabile IDs (woran das Rendering hängt). Auflösen
+      // mit FRISCHEM Content über den Ref — der Listener-Closure ist alt.
       if (data.type === MSG_ACTIVE_PAGE && typeof data.path === "string") {
         setPagePath(data.path);
+        setActivePage(resolveActivePage(data.path, contentRef.current));
         return;
       }
 
@@ -215,30 +258,26 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
   }
 
   /* ---------- Aktuelle Seite bestimmen ----------
-     Aus dem von der Vorschau gemeldeten Pfad leiten wir ab, welche Karten
-     der Editor zeigt. „/" → Startseite. „/<kat>" → Kategorie-Übersicht,
-     „/<kat>/<unter>" → eine einzelne Unterseite.
+     Über die STABILEN IDs aus `activePage` (nicht über den Slug). Dadurch
+     bleibt die richtige Karte sichtbar, auch während man den Slug umbenennt
+     — der alte Pfad passt dann kurz nicht mehr, die id schon. Findet sich
+     die id nicht mehr (Kategorie/Unterseite gelöscht), fallen wir sauber
+     eine Ebene höher bzw. auf die Startseite zurück.
 
-     Slice 2 (feinere Auftrennung): Wir bestimmen zusätzlich die aktive
-     Unterseite. Steht die Vorschau auf einer Unterseite, zeigt der Editor
-     NUR deren Felder (Titel, Intro, Bausteine); auf der Kategorie-Übersicht
-     dagegen die Kategorie-Felder + die Übersichts-Felder aller Unterseiten
-     (Label, Slug, Teaser, Karten-Bild). So bearbeitet man jedes Feld genau
-     dort, wo die Vorschau es zeigt. Findet sich keine Kategorie, fallen wir
-     auf die Startseite zurück; ein unbekannter Unterseiten-Slug (z. B. mitten
-     im Umbenennen) fällt sauber auf die Kategorie-Übersicht zurück. */
-  const pathParts = pagePath.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
-  const isHome = pathParts.length === 0;
-  const activeCat = isHome
-    ? null
-    : content.categories.find((c) => c.slug === pathParts[0]) ?? null;
-  // Unterseite nur, wenn der Pfad zwei Segmente hat UND der Slug passt.
+     Slice 2: Steht die Vorschau auf einer Unterseite (`activeSub`), zeigt der
+     Editor NUR deren Felder (Titel, Intro, Bausteine); auf der Kategorie-
+     Übersicht die Kategorie-Felder + die Übersichts-Felder aller Unterseiten.
+     So bearbeitet man jedes Feld genau dort, wo die Vorschau es zeigt. */
+  const activeCat =
+    activePage.kind === "home"
+      ? null
+      : content.categories.find((c) => c.id === activePage.catId) ?? null;
   const activeSub =
-    activeCat && pathParts.length === 2
-      ? activeCat.children.find((s) => s.slug === pathParts[1]) ?? null
+    activePage.kind === "sub" && activeCat
+      ? activeCat.children.find((s) => s.id === activePage.subId) ?? null
       : null;
-  // Ohne passende Kategorie (und nicht Startseite) zeigen wir die Startseite.
-  const showHome = isHome || activeCat === null;
+  // Ohne passende Kategorie (oder Startseite) zeigen wir die Startseite.
+  const showHome = activePage.kind === "home" || activeCat === null;
 
   // Bei jedem Content-Update den aktuellen Baum ins Iframe schicken.
   // Erst wenn die Vorschau ready ist (sonst geht das Signal verloren,
@@ -252,6 +291,47 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       window.location.origin,
     );
   }, [content, previewReady]);
+
+  /* ---------- Slug-Sync (Editor → Vorschau) ----------
+     Hält die Vorschau auf dem KANONISCHEN Pfad der aktiven Seite. Benennt man
+     im Editor den Slug der gerade gezeigten Seite um, zeigt die Vorschau noch
+     den alten Pfad — er passt nun nicht mehr zum (neuen) Inhalt. Wir bilden
+     den aktuellen Soll-Pfad aus den Slugs der aktiven IDs und schicken ihn,
+     falls er vom Ist-Pfad (`pagePath`) abweicht. Die Vorschau navigiert dann
+     (wie bei einem Link-Klick) und meldet den neuen Pfad per MSG_ACTIVE_PAGE
+     zurück — danach stimmen Soll und Ist überein, der Effekt ruht.
+
+     Kein Endlos-Pingpong: Wir senden NUR bei Abweichung; die Rückmeldung
+     löst auf dieselben IDs auf, `pagePath` wird = kanonisch, Bedingung
+     `canonical !== pagePath` wird falsch. Abhängig von den Slug-Strings (nicht
+     den Objekt-Referenzen), damit der Effekt nicht bei jedem Tastendruck in
+     anderen Feldern feuert. */
+  useEffect(() => {
+    if (!previewReady) return;
+    if (activePage.kind === "home" || !activeCat) return;
+    // Leeren Slug NICHT synchronisieren. Beim Umbenennen löscht man das Feld
+    // oft kurz ganz leer — der Pfad „/<kat>/" hätte dann nur noch EIN Segment
+    // und die Vorschau läse ihn als Kategorie (statt Unterseite). Sie würde
+    // melden „ich zeige jetzt die Kategorie", und der Editor fiele mitten im
+    // Tippen aus der Detail-Ansicht. Wir warten, bis wieder ein echter Slug
+    // dasteht. Solange zeigt die Vorschau kurz ihre NotFound-Ansicht (ihr
+    // alter Pfad existiert nicht mehr) — heilt beim nächsten gültigen Zeichen.
+    if (!activeCat.slug) return;
+    let canonical = "/" + activeCat.slug;
+    if (activePage.kind === "sub") {
+      if (!activeSub || !activeSub.slug) return;
+      canonical += "/" + activeSub.slug;
+    }
+    if (canonical !== pagePath) {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: MSG_GOTO_PATH, path: canonical },
+        window.location.origin,
+      );
+    }
+    // activeCat/activeSub sind pro Render neue Objekte — deshalb auf die
+    // stabilen Slug-Strings hören, nicht auf die Objekte selbst.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage, activeCat?.slug, activeSub?.slug, pagePath, previewReady]);
 
   /* ---------- Update-Helfer ----------
      Diese kleinen Funktionen vermeiden, dass an jedem Input

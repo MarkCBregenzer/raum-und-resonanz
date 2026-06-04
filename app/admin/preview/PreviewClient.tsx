@@ -19,6 +19,7 @@ import {
   MSG_SCROLL_TO,
   MSG_ACTIVE_SECTION,
   MSG_ACTIVE_PAGE,
+  MSG_GOTO_PATH,
 } from "../../components/section-map";
 import {
   MSG_SCROLL_TO_BLOCK,
@@ -145,6 +146,13 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
   const [hash, setHash] = useState<string>("");
   const [navTick, setNavTick] = useState<number>(0);
 
+  // Der message-Listener (s. u.) wird nur EINMAL registriert (`[]`), seine
+  // Closure würde `pathname` also auf dem Anfangswert „/" einfrieren. Damit
+  // der MSG_GOTO_PATH-Vergleich den LIVE-Pfad sieht, spiegeln wir ihn in
+  // einen Ref, der bei jedem Render aktualisiert wird.
+  const pathnameRef = useRef<string>("/");
+  pathnameRef.current = pathname;
+
   // Scroll-Spy nach einem gezielten Sprung anhalten, bis Mark WIRKLICH selbst
   // scrollt. Springt der Editor zu einer Sektion/einem Baustein, scrollt die
   // Vorschau dorthin — landet das Ziel mitten im Aktivierungsband, ragt der
@@ -223,6 +231,22 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
         navigate(data.path, "#" + blockAnchorId(data.blockIndex));
         // Wie oben: Spy bis zum nächsten echten Scroll anhalten.
         jumpHoldRef.current = true;
+        return;
+      }
+
+      // 4) Editor bittet, zu einem ganzen Pfad zu navigieren. Tritt auf, wenn
+      //    der Editor den Slug der gerade gezeigten Seite umbenennt: der alte
+      //    Pfad der Vorschau passt dann nicht mehr. Wie ein interner Link-Klick
+      //    (navigate setzt den Pfad und meldet ihn per MSG_ACTIVE_PAGE zurück).
+      //    Nur navigieren, wenn der Pfad sich wirklich ändert — sonst würde
+      //    jeder Tastendruck die Vorschau unnötig nach oben scrollen.
+      if (
+        data &&
+        data.type === MSG_GOTO_PATH &&
+        typeof data.path === "string" &&
+        data.path !== pathnameRef.current
+      ) {
+        navigate(data.path, "");
         return;
       }
     }
