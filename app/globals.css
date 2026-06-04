@@ -665,7 +665,10 @@ img { max-width: 100%; display: block; }
    Differenz zwischen Padding und gewünschtem Abstand zur Nummer.
    Das Karten-`overflow:hidden` rundet die oberen Ecken mit. */
 .method-card .card-media {
-  margin: calc(clamp(30px, 4vw, 52px) * -1) calc(clamp(30px, 4vw, 52px) * -1) 24px;
+  /* `--bleed` = negatives Karten-Padding (muss dem Padding von
+     `.method-card` entsprechen). Einmal definiert, zweimal genutzt. */
+  --bleed: calc(clamp(30px, 4vw, 52px) * -1);
+  margin: var(--bleed) var(--bleed) 24px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
 }

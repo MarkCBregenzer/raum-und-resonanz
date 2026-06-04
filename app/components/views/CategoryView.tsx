@@ -83,8 +83,10 @@ export function CategoryView({
                   automatisch mit. */}
               {sub.cardImage && (
                 <div className="card-media">
+                  {/* loading="lazy": Karten unterhalb des Falzes laden
+                      ihr Bild erst beim Heranscrollen, nicht sofort. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={sub.cardImage} alt={sub.navLabel} />
+                  <img src={sub.cardImage} alt={sub.navLabel} loading="lazy" />
                 </div>
               )}
               <span className="num">{romanNumeral(i + 1)}</span>
