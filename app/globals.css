@@ -902,6 +902,58 @@ img { max-width: 100%; display: block; }
 .btn.danger { color: #a03a3a; border-color: rgba(160, 58, 58, 0.35); }
 .btn.danger:hover:not(:disabled) { background: rgba(160, 58, 58, 0.08); }
 
+/* ----- Galerie-Auswahl (selectExistingPicture) ----- */
+/* Vollflächiges Overlay über dem Editor; zentriert das Auswahl-Panel. */
+.gallery-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(52, 25, 74, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.gallery-panel {
+  width: min(680px, 100%);
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: 0 40px 80px -30px rgba(52, 25, 74, 0.5);
+}
+.gallery-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.gallery-head h3 { color: var(--violet-deep); font-size: 1.2rem; }
+/* Thumbnail-Raster: feste Spaltenbreite, füllt die Breite auf. */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+/* Ein Thumbnail ist ein Button (klickbar = Bild wählen). */
+.gallery-thumb {
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-tint);
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), transform 0.2s var(--ease);
+}
+.gallery-thumb:hover { border-color: var(--violet-soft); transform: translateY(-2px); }
+/* Aktuell im Feld gewähltes Bild hervorheben. */
+.gallery-thumb.is-current { border-color: var(--violet); box-shadow: 0 0 0 2px var(--violet) inset; }
+.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-empty { color: var(--ink-soft); font-style: italic; padding: 12px 0; }
+.gallery-foot { margin-top: 18px; display: flex; justify-content: flex-end; }
+
 .form-done {
   text-align: center;
   padding: clamp(20px, 4vw, 40px) 0;

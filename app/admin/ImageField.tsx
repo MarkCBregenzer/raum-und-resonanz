@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { GalleryModal } from "./GalleryModal";
 
 /* ImageField — Bild auswählen oder hineinziehen (wie im Claude-Design)
    ------------------------------------------------------------
@@ -36,6 +37,9 @@ type Props = {
   label: string;
   value: string | null;
   onChange: (value: string | null) => void;
+  // Bereits im Inhalt verwendete Bilder (von collectGalleryImages).
+  // Speisen die „aus Galerie wählen"-Ansicht (Feature selectExistingPicture).
+  galleryImages: string[];
 };
 
 /* Eine Bilddatei im Browser auf Web-Größe verkleinern und als JPEG-Blob
@@ -71,13 +75,15 @@ function resizeToJpeg(file: File): Promise<Blob> {
   });
 }
 
-export function ImageField({ label, value, onChange }: Props) {
+export function ImageField({ label, value, onChange, galleryImages }: Props) {
   // Hervorhebung, während eine Datei über das Feld gezogen wird.
   const [drag, setDrag] = useState(false);
   // Läuft gerade ein Upload? Sperrt die Buttons und zeigt einen Hinweis.
   const [busy, setBusy] = useState(false);
   // Fehlertext (z. B. Upload fehlgeschlagen), sonst null.
   const [error, setError] = useState<string | null>(null);
+  // Ist die Galerie-Auswahl offen? „Bild wählen"/„Bild ändern" öffnet sie.
+  const [pickerOpen, setPickerOpen] = useState(false);
   // Verstecktes <input type=file>, das der Button auslöst.
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -155,7 +161,7 @@ export function ImageField({ label, value, onChange }: Props) {
               type="button"
               className="btn ghost sm"
               disabled={busy}
-              onClick={() => inputRef.current?.click()}
+              onClick={() => setPickerOpen(true)}
             >
               {value ? "Bild ändern" : "Bild wählen"}
             </button>
@@ -176,9 +182,29 @@ export function ImageField({ label, value, onChange }: Props) {
           type="file"
           accept="image/*"
           style={{ display: "none" }}
-          onChange={(e) => readFile(e.target.files?.[0])}
+          onChange={(e) => {
+            // Datei vom Gerät gewählt → Galerie schließen, dann hochladen.
+            setPickerOpen(false);
+            readFile(e.target.files?.[0]);
+          }}
         />
       </div>
+
+      {/* Galerie-Auswahl: bereits verwendete Bilder wählen ODER (im Modal)
+          ein neues Foto vom Gerät hochladen. Klick auf ein Thumbnail
+          schreibt dessen URL ins Feld und schließt die Auswahl. */}
+      {pickerOpen && (
+        <GalleryModal
+          images={galleryImages}
+          currentValue={value}
+          onPick={(url) => {
+            onChange(url);
+            setPickerOpen(false);
+          }}
+          onUploadClick={() => inputRef.current?.click()}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }

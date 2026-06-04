@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import type { Content } from "@/lib/default-content";
+import { collectGalleryImages } from "@/lib/gallery";
 import { CategoryTreeEditor } from "./CategoryTreeEditor";
 import {
   SECTION_BY_KEY,
@@ -94,6 +95,13 @@ function resolveActivePage(path: string, content: Content): ActivePage {
 export function AdminEditor({ initialContent, initialPublished, sessionUser }: Props) {
   const [content, setContent] = useState<Content>(initialContent);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+
+  /* Galerie: alle bereits im (Entwurfs-)Inhalt verwendeten Bilder. Speist
+     die „aus Galerie wählen"-Ansicht im ImageField (selectExistingPicture).
+     Bewusst aus `content` (dem Bearbeitungsstand), damit eben hinzugefügte
+     Bilder sofort wählbar sind. `useMemo`, damit die Liste nur bei
+     Inhaltsänderung neu berechnet wird, nicht bei jedem Render. */
+  const galleryImages = useMemo(() => collectGalleryImages(content), [content]);
 
   /* ---------- Draft/Publish ----------
      `publishedContent` ist der zuletzt VERÖFFENTLICHTE Stand. Wir
@@ -894,6 +902,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
             activeSubId={activeSub?.id ?? null}
             setContent={setContent}
             blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
+            galleryImages={galleryImages}
           />
         </section>
       </div>
