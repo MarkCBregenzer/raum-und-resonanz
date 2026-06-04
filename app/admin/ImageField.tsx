@@ -40,6 +40,9 @@ type Props = {
   // Bereits im Inhalt verwendete Bilder (von collectGalleryImages).
   // Speisen die „aus Galerie wählen"-Ansicht (Feature selectExistingPicture).
   galleryImages: string[];
+  // Ein Bild komplett aus dem Inhalt entfernen (Galerie → „Entfernen").
+  // Wirkt global (alle Verwendungen), darum oben im Editor mit Bestätigung.
+  onRemoveImage: (url: string) => void;
 };
 
 /* Eine Bilddatei im Browser auf Web-Größe verkleinern und als JPEG-Blob
@@ -75,7 +78,7 @@ function resizeToJpeg(file: File): Promise<Blob> {
   });
 }
 
-export function ImageField({ label, value, onChange, galleryImages }: Props) {
+export function ImageField({ label, value, onChange, galleryImages, onRemoveImage }: Props) {
   // Hervorhebung, während eine Datei über das Feld gezogen wird.
   const [drag, setDrag] = useState(false);
   // Läuft gerade ein Upload? Sperrt die Buttons und zeigt einen Hinweis.
@@ -202,6 +205,7 @@ export function ImageField({ label, value, onChange, galleryImages }: Props) {
             setPickerOpen(false);
           }}
           onUploadClick={() => inputRef.current?.click()}
+          onRemove={onRemoveImage}
           onClose={() => setPickerOpen(false)}
         />
       )}

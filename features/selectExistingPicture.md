@@ -39,8 +39,38 @@ image field at once.
         (search / filter · labels / captions · content-hash dedupe of visually-identical files)
 
 - Epic (E.E.): selectExistingPicture — gallery management
-        (remove-from-gallery / unused-blob cleanup · usage counts · upload-feeds-gallery)
+        (remove-from-gallery ✅ done · unused-blob cleanup ✅ done · usage counts · upload-feeds-gallery)
 ```
+
+### Bite 2 — „aus Galerie entfernen" (done 2026-06-04)
+
+Second bite, taken from the *gallery management* E.E. epic. „Entfernen" (✕ am
+Thumbnail) löscht ein Bild aus dem GESAMTEN Inhaltsbaum: jede löschbare
+Verwendung der URL wird auf null gesetzt (`removeImageEverywhere`), danach
+verschwindet das Bild aus der abgeleiteten Galerie. Mit Bestätigungsdialog
+(destruktiv). Sonderfall **Portrait** (`home.about.portrait`, nicht nullbar):
+blockiert mit Hinweis „erst im Bereich Über mich ändern".
+
+**Bewusst NICHT in diesem Bite — Blob-Löschung.** Ein Blob darf erst gelöscht
+werden, wenn ihn KEIN gespeicherter Stand mehr braucht (weder Entwurf NOCH
+veröffentlichter Inhalt) — sonst bricht die Live-Seite. Diese aufräumende
+Löschung gehört an die Veröffentlichen-Route. „Entfernen" leert hier nur die
+Verweise im Entwurf; der Speicher wird sicher beim nächsten Veröffentlichen
+frei (siehe Bite 3).
+
+### Bite 3 — Blob-Müllabfuhr beim Veröffentlichen (done 2026-06-04)
+
+Item „unused-blob cleanup". `cleanupOrphanBlobs` (`lib/blob-gc.ts`) läuft am
+Ende von `POST /api/content/publish`, im einzig sicheren Moment: Entwurf und
+veröffentlichter Stand sind wertgleich. Referenzmenge = collectGalleryImages
+des Entwurfs; jeder Blob im Store außerhalb davon wird gelöscht. Best-effort —
+ein Fehler der Müllabfuhr lässt das Veröffentlichen NICHT scheitern (Inhalt ist
+schon live). Antwort enthält `gc: { deleted, kept }`.
+
+Browser-geprüft: nie referenzierten Test-Blob hochgeladen, veröffentlicht →
+`gc.deleted` zählte ihn, `gc.kept` behielt das referenzierte Bild; per HTTP
+verifiziert: referenziertes Bild 200, verwaister Blob 404. Damit ist der von
+Mark gewählte „Delete everywhere + Blob"-Pfad vollständig.
 
 Notes on the split:
 - The shared `ImageField` is the lever that keeps the bite small — wiring it once

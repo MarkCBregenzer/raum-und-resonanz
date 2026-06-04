@@ -26,6 +26,9 @@ type Props = {
   currentValue?: string | null; // aktuell im Feld → wird markiert
   onPick: (url: string) => void;
   onUploadClick: () => void;
+  // Ein Bild aus dem Inhalt entfernen (Bestätigung + Portrait-Schutz im
+  // Editor). Klick auf das ✕ am Thumbnail meldet die URL hierüber zurück.
+  onRemove: (url: string) => void;
   onClose: () => void;
 };
 
@@ -34,6 +37,7 @@ export function GalleryModal({
   currentValue,
   onPick,
   onUploadClick,
+  onRemove,
   onClose,
 }: Props) {
   // Escape schließt die Galerie (wie ein Klick auf den Hintergrund).
@@ -73,16 +77,34 @@ export function GalleryModal({
             {images.map((url) => {
               const isCurrent = !!currentValue && url === currentValue;
               return (
-                <button
-                  type="button"
+                // Wrapper-Div statt verschachtelter Buttons: ein Button zum
+                // Wählen darf keinen zweiten Button (Entfernen) enthalten
+                // (ungültiges HTML). Darum liegen beide nebeneinander im div.
+                <div
                   key={url}
-                  className={"gallery-thumb" + (isCurrent ? " is-current" : "")}
-                  onClick={() => onPick(url)}
-                  title={isCurrent ? "Aktuell ausgewählt" : "Dieses Bild wählen"}
+                  className={"gallery-item" + (isCurrent ? " is-current" : "")}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="" />
-                </button>
+                  <button
+                    type="button"
+                    className="gallery-thumb"
+                    onClick={() => onPick(url)}
+                    title={isCurrent ? "Aktuell ausgewählt" : "Dieses Bild wählen"}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" />
+                  </button>
+                  {/* Entfernen: nimmt das Bild aus dem ganzen Inhalt. Die
+                      Bestätigung + der Portrait-Schutz sitzen im Editor. */}
+                  <button
+                    type="button"
+                    className="gallery-remove"
+                    onClick={() => onRemove(url)}
+                    aria-label="Bild aus dem Inhalt entfernen"
+                    title="Aus dem Inhalt entfernen"
+                  >
+                    ✕
+                  </button>
+                </div>
               );
             })}
           </div>

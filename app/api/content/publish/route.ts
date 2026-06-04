@@ -20,6 +20,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { type Content } from "@/lib/default-content";
+import { collectGalleryImages } from "@/lib/gallery";
+import { cleanupOrphanBlobs } from "@/lib/blob-gc";
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -48,6 +50,26 @@ export async function POST() {
           updated_at = NOW()
   `;
 
+  /* ---------- Blob-Müllabfuhr ----------
+     Jetzt ist der sichere Moment: Entwurf (key='draft', haben wir oben
+     gelesen) und veröffentlichter Stand (key='content', gerade gleichgesetzt)
+     sind wertgleich. Damit ist die Menge der noch gebrauchten Bilder genau
+     collectGalleryImages(draft) — jeder Blob außerhalb davon wird von KEINEM
+     Stand mehr referenziert und darf weg.
+
+     Best-effort: Scheitert die Müllabfuhr (Netz, fehlendes Blob-Token lokal),
+     darf das Veröffentlichen NICHT scheitern — der Inhalt ist schon live.
+     Wir fangen den Fehler, loggen ihn und machen weiter. */
+  let gc: { deleted: number; kept: number } | null = null;
+  try {
+    const referenced = new Set(collectGalleryImages(draft));
+    gc = await cleanupOrphanBlobs(referenced);
+  } catch (err) {
+    // Nur protokollieren — verwaiste Blobs sind kein Grund, das
+    // Veröffentlichen rückgängig zu machen.
+    console.error("Blob-Müllabfuhr fehlgeschlagen:", err);
+  }
+
   // Cache der öffentlichen Seiten verwerfen. Ohne diesen Schritt liefert
   // Next die zur Build-Zeit statisch vorgerenderten Seiten weiter aus —
   // die Datenbank ist aktuell, die Live-Seite aber eingefroren. `"layout"`
@@ -56,5 +78,11 @@ export async function POST() {
   // getContent() lesen. Erst der nächste Aufruf rendert mit frischen Daten.
   revalidatePath("/", "layout");
 
-  return NextResponse.json({ ok: true, published: true, at: new Date().toISOString() });
+  return NextResponse.json({
+    ok: true,
+    published: true,
+    at: new Date().toISOString(),
+    // Kleine Statistik der Müllabfuhr (null = übersprungen/fehlgeschlagen).
+    gc,
+  });
 }

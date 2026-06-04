@@ -48,3 +48,60 @@ export function collectGalleryImages(content: Content): string[] {
 
   return urls;
 }
+
+/* ============================================================
+   Ein Bild komplett aus dem Inhalt entfernen.
+   ------------------------------------------------------------
+   Feature `selectExistingPicture` → E.E.-Epic „Galerie-Verwaltung",
+   Item „aus Galerie entfernen". Weil die Galerie nur die im Inhalt
+   verwendeten Bilder spiegelt, heißt „entfernen" hier: jede löschbare
+   Verwendung dieser URL im Baum auf null setzen. Danach taucht das Bild
+   nirgends mehr auf → es verschwindet automatisch aus der (abgeleiteten)
+   Galerie.
+
+   WICHTIG — Lebenszyklus des Blobs: Diese Funktion löscht NUR Verweise im
+   Entwurf. Den eigentlichen Blob (die Bytes im Vercel-Speicher) rührt sie
+   NICHT an. Ein Blob darf erst gelöscht werden, wenn ihn KEIN gespeicherter
+   Stand mehr braucht — weder der Entwurf NOCH der veröffentlichte Inhalt.
+   Sonst bricht die Live-Seite, solange dort noch der alte Stand steht.
+   Diese aufräumende Blob-Löschung passiert deshalb separat beim
+   Veröffentlichen (geparktes Item „unused-blob cleanup"), nicht hier.
+
+   Reine Funktion: liefert eine NEUE Content-Kopie (unveränderlich), der
+   alte Baum bleibt unberührt — passt zu Reacts setState((c) => …). */
+export function removeImageEverywhere(content: Content, url: string): Content {
+  // Wert leeren, wenn er genau die zu entfernende URL ist; sonst behalten.
+  const clear = (value: string | null | undefined) =>
+    value === url ? null : (value ?? null);
+
+  return {
+    ...content,
+    home: {
+      ...content.home,
+      // Portrait ist NICHT nullbar (Typ string) → hier bewusst NICHT
+      // angefasst. Der Aufrufer fängt diesen Fall vorher mit
+      // isUsedAsPortrait() ab und verweigert das Entfernen mit Hinweis.
+      welcome: { ...content.home.welcome, image: clear(content.home.welcome.image) },
+    },
+    categories: content.categories.map((cat) => ({
+      ...cat,
+      children: cat.children.map((sub) => ({
+        ...sub,
+        cardImage: clear(sub.cardImage),
+        blocks: sub.blocks.map((block) => {
+          if (block.type === "text") return { ...block, image: clear(block.image) };
+          if (block.type === "image") return { ...block, src: clear(block.src) };
+          return block;
+        }),
+      })),
+    })),
+  };
+}
+
+/* Wird die URL als Portrait (home.about.portrait) verwendet? Dieses Feld
+   ist als `string` (nicht nullbar) modelliert — wir können es nicht auf
+   null setzen. Darum blockiert der Aufrufer das Entfernen eines Portraits
+   und bittet, es zuerst im Bereich „Über mich" zu ändern. */
+export function isUsedAsPortrait(content: Content, url: string): boolean {
+  return content.home.about.portrait === url;
+}

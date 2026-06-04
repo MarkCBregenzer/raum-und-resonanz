@@ -71,6 +71,11 @@ type Props = {
   // Bereits im Inhalt verwendete Bilder (für die Galerie-Auswahl im
   // ImageField). Wird wie `blockSync` durch alle Ebenen durchgereicht.
   galleryImages: string[];
+  // Ein Bild komplett aus dem Inhaltsbaum entfernen (selectExistingPicture,
+  // „Entfernen" in der Galerie). Setzt jede löschbare Verwendung der URL auf
+  // null. Wird — wie galleryImages — durch alle Ebenen bis zum ImageField
+  // durchgereicht.
+  onRemoveImage: (url: string) => void;
 };
 
 // Kleine ID-Helfer. Für neue Knoten reicht ein zeit-basierter Suffix
@@ -101,7 +106,7 @@ function slugify(s: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-export function CategoryTreeEditor({ categories, activeCatId, activeSubId, setContent, blockSync, galleryImages }: Props) {
+export function CategoryTreeEditor({ categories, activeCatId, activeSubId, setContent, blockSync, galleryImages, onRemoveImage }: Props) {
   /* ---------- Kategorie-Operationen ---------- */
 
   function updateCategory<K extends keyof Category>(
@@ -354,6 +359,7 @@ export function CategoryTreeEditor({ categories, activeCatId, activeSubId, setCo
             onMoveBlock={moveBlock}
             blockSync={blockSync}
             galleryImages={galleryImages}
+            onRemoveImage={onRemoveImage}
           />
         );
       })}
@@ -555,6 +561,7 @@ type CategoryCardProps = {
   ) => void;
   blockSync: BlockSync;
   galleryImages: string[];
+  onRemoveImage: (url: string) => void;
 };
 
 function CategoryCard(props: CategoryCardProps) {
@@ -673,6 +680,7 @@ function CategoryCard(props: CategoryCardProps) {
             onMoveBlock={props.onMoveBlock}
             blockSync={props.blockSync}
             galleryImages={props.galleryImages}
+            onRemoveImage={props.onRemoveImage}
           />
         );
       })}
@@ -716,6 +724,7 @@ type SubpageCardProps = {
   onMoveBlock: CategoryCardProps["onMoveBlock"];
   blockSync: BlockSync;
   galleryImages: string[];
+  onRemoveImage: CategoryCardProps["onRemoveImage"];
 };
 
 function SubpageCard(props: SubpageCardProps) {
@@ -807,6 +816,7 @@ function SubpageCard(props: SubpageCardProps) {
             value={sub.cardImage ?? null}
             onChange={(v) => props.onUpdateSubpage(catIdx, subIdx, "cardImage", v)}
             galleryImages={props.galleryImages}
+            onRemoveImage={props.onRemoveImage}
           />
         </>
       )}
@@ -873,6 +883,7 @@ function SubpageCard(props: SubpageCardProps) {
               onMoveBlock={props.onMoveBlock}
               blockSync={props.blockSync}
               galleryImages={props.galleryImages}
+              onRemoveImage={props.onRemoveImage}
             />
           ))}
 
@@ -917,6 +928,7 @@ type BlockCardProps = {
   onMoveBlock: CategoryCardProps["onMoveBlock"];
   blockSync: BlockSync;
   galleryImages: string[];
+  onRemoveImage: CategoryCardProps["onRemoveImage"];
 };
 
 function BlockCard(props: BlockCardProps) {
@@ -1007,6 +1019,7 @@ function BlockCard(props: BlockCardProps) {
               props.onUpdateBlock(catIdx, subIdx, blockIdx, { image: v })
             }
             galleryImages={props.galleryImages}
+            onRemoveImage={props.onRemoveImage}
           />
 
           {block.image && (
@@ -1054,6 +1067,7 @@ function BlockCard(props: BlockCardProps) {
               props.onUpdateBlock(catIdx, subIdx, blockIdx, { src: v })
             }
             galleryImages={props.galleryImages}
+            onRemoveImage={props.onRemoveImage}
           />
           <Field label="Bildunterschrift">
             <input

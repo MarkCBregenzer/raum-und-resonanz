@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import type { Content } from "@/lib/default-content";
-import { collectGalleryImages } from "@/lib/gallery";
+import {
+  collectGalleryImages,
+  removeImageEverywhere,
+  isUsedAsPortrait,
+} from "@/lib/gallery";
 import { CategoryTreeEditor } from "./CategoryTreeEditor";
 import {
   SECTION_BY_KEY,
@@ -102,6 +106,33 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
      Bilder sofort wählbar sind. `useMemo`, damit die Liste nur bei
      Inhaltsänderung neu berechnet wird, nicht bei jedem Render. */
   const galleryImages = useMemo(() => collectGalleryImages(content), [content]);
+
+  /* Ein Bild komplett aus dem Inhalt entfernen (Galerie → „Entfernen").
+     Destruktiv über den ganzen Entwurf: jede löschbare Verwendung der URL
+     wird auf null gesetzt — darum vorher eine Bestätigung. Sonderfall
+     Portrait: nicht nullbar, also blockieren wir und bitten, es zuerst im
+     Bereich „Über mich" zu ändern. Den Blob selbst löschen wir hier NICHT
+     (siehe removeImageEverywhere) — das passiert sicher erst beim
+     Veröffentlichen, wenn ihn kein Stand mehr braucht. Die Änderung wirkt
+     erst nach „Speichern"/„Veröffentlichen"; bis dahin nur im Entwurf. */
+  function handleRemoveImage(url: string) {
+    if (isUsedAsPortrait(content, url)) {
+      window.alert(
+        "Dieses Bild wird als Portrait im Bereich „Über mich“ verwendet und " +
+          "kann nicht entfernt werden. Bitte ändere zuerst dort das Portrait.",
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        "Dieses Bild an ALLEN Stellen entfernen, an denen es im Inhalt " +
+          "verwendet wird? Die betroffenen Felder werden geleert.",
+      )
+    ) {
+      return;
+    }
+    setContent((c) => removeImageEverywhere(c, url));
+  }
 
   /* ---------- Draft/Publish ----------
      `publishedContent` ist der zuletzt VERÖFFENTLICHTE Stand. Wir
@@ -903,6 +934,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
             setContent={setContent}
             blockSync={{ activeKey: activeBlock, onJump: jumpToBlock }}
             galleryImages={galleryImages}
+            onRemoveImage={handleRemoveImage}
           />
         </section>
       </div>
