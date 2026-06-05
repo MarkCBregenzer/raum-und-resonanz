@@ -510,6 +510,20 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       return { ...c, legal: { ...c.legal, [page]: { ...c.legal[page], sections: next } } };
     });
   }
+  /* Einen Abschnitt um eine Position nach oben (dir = -1) oder unten
+     (dir = +1) verschieben — vertauscht ihn mit seinem Nachbarn. Am Rand
+     (kein Nachbar) passiert nichts; die Buttons sind dort ohnehin deaktiviert,
+     die Prüfung ist nur die zusätzliche Absicherung. */
+  function moveLegalSection(page: LegalKey, i: number, dir: -1 | 1) {
+    setContent((c) => {
+      const sections = c.legal[page].sections;
+      const j = i + dir;
+      if (j < 0 || j >= sections.length) return c; // kein Nachbar → unverändert
+      const next = [...sections];
+      [next[i], next[j]] = [next[j], next[i]]; // Nachbarn tauschen
+      return { ...c, legal: { ...c.legal, [page]: { ...c.legal[page], sections: next } } };
+    });
+  }
 
   /* ---------- Speichern ----------
      Schickt das gesamte Content-Objekt an /api/content. Die
@@ -1046,6 +1060,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
               onSection={(i, field, v) => updateLegalSection(activePage.page, i, field, v)}
               onAdd={() => addLegalSection(activePage.page)}
               onRemove={(i) => removeLegalSection(activePage.page, i)}
+              onMove={(i, dir) => moveLegalSection(activePage.page, i, dir)}
             />
           </>
         )}
@@ -1249,6 +1264,12 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           justify-content: space-between;
           gap: 12px;
         }
+        /* Aktions-Knöpfe rechts in der Abschnitts-Kopfzeile (↑ ↓ Entfernen). */
+        .subcard-actions { display: flex; gap: 6px; align-items: center; }
+        /* Deaktivierte Ghost-Knöpfe (z. B. ↑ am ersten Abschnitt): ausgegraut
+           und nicht klickbar. */
+        .btn.ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn.ghost:disabled:hover { background: transparent; }
         /* ---- Split-Layout: Formular links, Live-Vorschau rechts ----
            Auf großen Screens zwei Spalten; auf kleineren stapeln. Wenn
            die Vorschau ausgeblendet ist, bekommt das Formular die ganze
@@ -1338,6 +1359,7 @@ function LegalEditor({
   onSection,
   onAdd,
   onRemove,
+  onMove,
 }: {
   heading: string;
   page: LegalPage;
@@ -1345,6 +1367,7 @@ function LegalEditor({
   onSection: (i: number, field: "heading" | "body", value: string) => void;
   onAdd: () => void;
   onRemove: (i: number) => void;
+  onMove: (i: number, dir: -1 | 1) => void;
 }) {
   return (
     <section className="card">
@@ -1357,13 +1380,38 @@ function LegalEditor({
         <div key={i} className="subcard">
           <div className="subcard-head">
             <p className="subcard-title">Abschnitt {i + 1}</p>
-            <button
-              type="button"
-              className="btn ghost danger sm"
-              onClick={() => onRemove(i)}
-            >
-              Entfernen
-            </button>
+            <div className="subcard-actions">
+              {/* Reihenfolge ändern: hoch/runter mit dem Nachbarn tauschen.
+                  Am Rand deaktiviert (erster Abschnitt kann nicht höher,
+                  letzter nicht tiefer). */}
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => onMove(i, -1)}
+                disabled={i === 0}
+                title="Abschnitt nach oben"
+                aria-label="Abschnitt nach oben"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => onMove(i, 1)}
+                disabled={i === page.sections.length - 1}
+                title="Abschnitt nach unten"
+                aria-label="Abschnitt nach unten"
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="btn ghost danger sm"
+                onClick={() => onRemove(i)}
+              >
+                Entfernen
+              </button>
+            </div>
           </div>
           <Field label="Überschrift">
             <input
