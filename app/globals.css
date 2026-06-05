@@ -1223,7 +1223,10 @@ img { max-width: 100%; display: block; }
   color: var(--ink-soft);
 }
 .cookie-text a {
-  color: var(--gold-deep);
+  /* Violett statt Gold: Gold-Deep auf Weiß liegt bei ~4,17:1 und reißt
+     die WCAG-AA-Grenze (4,5:1) für normalen Text knapp. Violett (Primär-
+     farbe) erreicht ~9,6:1 — klar lesbar, weiterhin markengerecht. */
+  color: var(--violet);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

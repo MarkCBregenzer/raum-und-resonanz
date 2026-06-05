@@ -66,8 +66,19 @@ export function CookieBanner() {
       setDetails(true);
       setOpen(true);
     }
+    // Esc schließt das Banner (ohne etwas zu speichern). Es erscheint beim
+    // nächsten Besuch erneut, solange keine Wahl getroffen wurde — „keine
+    // Entscheidung" bleibt also „keine Einwilligung". Bequemer Ausweg per
+    // Tastatur, ohne eine Auswahl zu erzwingen.
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     window.addEventListener(CONSENT_OPEN, reopen);
-    return () => window.removeEventListener(CONSENT_OPEN, reopen);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener(CONSENT_OPEN, reopen);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [onAdmin]);
 
   // Eine Wahl festschreiben und Banner schließen. `stat` = ob Statistik
@@ -83,10 +94,13 @@ export function CookieBanner() {
   if (onAdmin || !open) return null;
 
   return (
+    // role="region" + aria-label: Das Banner blockiert die Seite NICHT
+    // (kein modaler Dialog), darum kein role="dialog"/aria-modal. „region"
+    // macht es für Screenreader zu einem benannten Seitenbereich, den man
+    // gezielt ansteuern kann.
     <div
       className="cookie-banner"
-      role="dialog"
-      aria-modal="false"
+      role="region"
       aria-label="Cookie-Einstellungen"
     >
       <div className="cookie-inner">
