@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
-import type { Content } from "@/lib/default-content";
+import type { Content, LegalPage } from "@/lib/default-content";
 import {
   collectGalleryImages,
   removeImageEverywhere,
@@ -450,6 +450,54 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       ...c,
       home: { ...c.home, contact: { ...c.home.contact, [key]: value } },
     }));
+  }
+
+  /* ---------- Rechtstexte (Impressum / Datenschutz) ----------
+     `page` wählt eine der beiden Rechtsseiten. Vier kleine Helfer nach dem
+     Muster der übrigen Update-Funktionen: Titel ändern, einen Abschnitt
+     ändern, einen Abschnitt anhängen, einen Abschnitt entfernen. Alle
+     arbeiten unveränderlich (neue Objekte/Arrays), damit React zuverlässig
+     neu rendert und die Live-Vorschau-Synchronisierung greift. */
+  type LegalKey = "impressum" | "datenschutz";
+
+  function updateLegalTitle(page: LegalKey, value: string) {
+    setContent((c) => ({
+      ...c,
+      legal: { ...c.legal, [page]: { ...c.legal[page], title: value } },
+    }));
+  }
+  function updateLegalSection(
+    page: LegalKey,
+    i: number,
+    field: "heading" | "body",
+    value: string,
+  ) {
+    setContent((c) => {
+      const next = [...c.legal[page].sections];
+      next[i] = { ...next[i], [field]: value };
+      return { ...c, legal: { ...c.legal, [page]: { ...c.legal[page], sections: next } } };
+    });
+  }
+  function addLegalSection(page: LegalKey) {
+    setContent((c) => ({
+      ...c,
+      legal: {
+        ...c.legal,
+        [page]: {
+          ...c.legal[page],
+          sections: [...c.legal[page].sections, { heading: "Neuer Abschnitt", body: "" }],
+        },
+      },
+    }));
+  }
+  function removeLegalSection(page: LegalKey, i: number) {
+    // Lokal im Entwurf und über „Verwerfen" rückholbar — trotzdem eine kurze
+    // Rückfrage, weil ein ganzer Abschnitt verschwindet.
+    if (!window.confirm("Diesen Abschnitt entfernen?")) return;
+    setContent((c) => {
+      const next = c.legal[page].sections.filter((_, idx) => idx !== i);
+      return { ...c, legal: { ...c.legal, [page]: { ...c.legal[page], sections: next } } };
+    });
   }
 
   /* ---------- Speichern ----------
@@ -963,6 +1011,34 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
         </section>
       </div>
 
+      {/* ---------- Gruppe: Rechtliches ----------
+          IMMER sichtbar (nicht `hidden`-gesteuert wie die Home-/Kategorie-
+          Gruppe). Bewusster, kleiner Bruch mit dem „Editor folgt der
+          Vorschau"-Prinzip: die Rechtsseiten (/impressum, /datenschutz)
+          werden in der Live-Vorschau nicht gerendert, also gibt es keinen
+          Vorschau-Auslöser, der sie einblenden könnte. Darum stehen sie als
+          eigener Block am Ende des Formulars. (Eine echte Vorschau-Anbindung
+          der Rechtsseiten wäre eine eigene, größere Ausbaustufe.) */}
+      <div className="editor-group">
+        <h2 className="editor-group-title">Rechtliches</h2>
+        <LegalEditor
+          heading="Impressum"
+          page={content.legal.impressum}
+          onTitle={(v) => updateLegalTitle("impressum", v)}
+          onSection={(i, field, v) => updateLegalSection("impressum", i, field, v)}
+          onAdd={() => addLegalSection("impressum")}
+          onRemove={(i) => removeLegalSection("impressum", i)}
+        />
+        <LegalEditor
+          heading="Datenschutz"
+          page={content.legal.datenschutz}
+          onTitle={(v) => updateLegalTitle("datenschutz", v)}
+          onSection={(i, field, v) => updateLegalSection("datenschutz", i, field, v)}
+          onAdd={() => addLegalSection("datenschutz")}
+          onRemove={(i) => removeLegalSection("datenschutz", i)}
+        />
+      </div>
+
           {/* Die Aktions-Knöpfe (Speichern/Verwerfen/Veröffentlichen) und die
               Status-Anzeige leben ausschließlich oben in der sticky .admin-top.
               Die frühere Wiederholung am Seitenende wurde entfernt — sie war
@@ -1153,6 +1229,14 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           text-transform: uppercase;
           color: #9C7544;
         }
+        /* Kopfzeile einer Sub-Karte: Titel links, Aktion (z. B. „Entfernen")
+           rechts. Wird für die Rechtstext-Abschnitte genutzt. */
+        .subcard-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
         /* ---- Split-Layout: Formular links, Live-Vorschau rechts ----
            Auf großen Screens zwei Spalten; auf kleineren stapeln. Wenn
            die Vorschau ausgeblendet ist, bekommt das Formular die ganze
@@ -1226,6 +1310,72 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+/* LegalEditor — Editor für EINE Rechtsseite (Impressum oder Datenschutz).
+   Rein präsentational: bekommt den aktuellen Seiteninhalt plus vier
+   Callbacks und zeichnet Titel-Feld, die Abschnitts-Liste (Überschrift +
+   mehrzeiliger Text, je mit „Entfernen") und einen „Abschnitt hinzufügen"-
+   Knopf. Zweimal verwendet — darum als eigene Komponente, nicht doppelt
+   inline. */
+function LegalEditor({
+  heading,
+  page,
+  onTitle,
+  onSection,
+  onAdd,
+  onRemove,
+}: {
+  heading: string;
+  page: LegalPage;
+  onTitle: (value: string) => void;
+  onSection: (i: number, field: "heading" | "body", value: string) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <section className="card">
+      <h2>{heading}</h2>
+      <Field label="Seitentitel (Überschrift)">
+        <input type="text" value={page.title} onChange={(e) => onTitle(e.target.value)} />
+      </Field>
+
+      {page.sections.map((section, i) => (
+        <div key={i} className="subcard">
+          <div className="subcard-head">
+            <p className="subcard-title">Abschnitt {i + 1}</p>
+            <button
+              type="button"
+              className="btn ghost danger sm"
+              onClick={() => onRemove(i)}
+            >
+              Entfernen
+            </button>
+          </div>
+          <Field label="Überschrift">
+            <input
+              type="text"
+              value={section.heading}
+              onChange={(e) => onSection(i, "heading", e.target.value)}
+            />
+          </Field>
+          <Field label="Text (Leerzeile = neuer Absatz)">
+            <textarea
+              rows={5}
+              value={section.body}
+              onChange={(e) => onSection(i, "body", e.target.value)}
+            />
+          </Field>
+        </div>
+      ))}
+
+      <div>
+        <button type="button" className="btn ghost sm" onClick={onAdd}>
+          + Abschnitt hinzufügen
+        </button>
+      </div>
+    </section>
   );
 }
 

@@ -13,6 +13,25 @@
 import { sql } from "./db";
 import { DEFAULT_CONTENT, type Content } from "./default-content";
 
+/* withDefaults — fehlende Felder aus dem Default auffüllen.
+   ------------------------------------------------------------
+   Die in der DB gespeicherten Zeilen stammen aus früheren Slices und
+   kennen das neue `legal`-Feld NICHT. `migrate.mjs` nutzt
+   ON CONFLICT DO NOTHING, seedet also nur eine LEERE Tabelle — bestehende
+   `content`/`draft`-Zeilen werden nie nachgezogen. Ohne diesen Fallback
+   wäre `value.legal` auf echten Daten `undefined` und jeder Zugriff
+   (`content.legal.impressum.title`) würde werfen — im Editor wie auf den
+   öffentlichen Seiten. Wir füllen das Feld also beim LESEN auf; beim ersten
+   Speichern aus der Verwaltung wird `legal` dann dauerhaft mitgeschrieben.
+   Gilt auch für Produktion (dort dieselben veralteten Zeilen) — darum
+   bewusst keine Einmal-Migration, sondern eine robuste Lese-Normalisierung. */
+function withDefaults(value: Content): Content {
+  return {
+    ...value,
+    legal: value.legal ?? DEFAULT_CONTENT.legal,
+  };
+}
+
 export async function getContent(): Promise<Content> {
   // Neon sql-Template gibt ein Array von Rows zurück.
   // Wir holen genau die eine Zeile mit key='content'.
@@ -27,7 +46,7 @@ export async function getContent(): Promise<Content> {
     return DEFAULT_CONTENT;
   }
 
-  return rows[0].value;
+  return withDefaults(rows[0].value);
 }
 
 /* getDraft — Arbeitsstand der Verwaltung (Key = "draft").
@@ -49,8 +68,9 @@ export async function getDraft(): Promise<Content> {
 
   if (rows.length === 0) {
     // Kein Entwurf vorhanden → veröffentlichten Stand verwenden.
+    // (getContent normalisiert bereits selbst.)
     return getContent();
   }
 
-  return rows[0].value;
+  return withDefaults(rows[0].value);
 }

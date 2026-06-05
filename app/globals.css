@@ -1087,6 +1087,9 @@ img { max-width: 100%; display: block; }
   margin: 44px 0 12px;
 }
 .legal p { color: var(--ink-soft); margin-bottom: 10px; }
+/* CMS-Rechtstext-Absatz: einzelne Zeilenumbrüche im Fließtext erhalten
+   (z. B. mehrzeilige Adresse), Leerzeilen trennen weiterhin Absätze. */
+.legal-p { white-space: pre-line; }
 .legal .draft {
   background: var(--bg-tint);
   border: 1px solid var(--line);

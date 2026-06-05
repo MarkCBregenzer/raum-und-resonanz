@@ -52,6 +52,25 @@ export type Category = {
   children: Subpage[];
 };
 
+/* Rechtstexte (Impressum, Datenschutz).
+   ------------------------------------------------------------
+   Bewusst schlicht modelliert: ein Titel plus eine Liste von
+   Abschnitten. Jeder Abschnitt hat eine Überschrift (rendert als
+   <h2>) und einen mehrzeiligen Fließtext (rendert in Absätze —
+   Leerzeile = neuer Absatz). KEIN Markdown-Parser nötig; die
+   Struktur passt 1:1 auf die bestehenden `.legal h2`/`.legal p`-
+   Stile und spiegelt das Muster der Methoden-Karten / Absätze.
+   So kann die Verwaltung Abschnitte frei bearbeiten, hinzufügen
+   und entfernen, wenn sich z. B. die Rechtslage ändert. */
+export type LegalSection = {
+  heading: string; // Abschnitts-Überschrift (<h2>)
+  body: string; // Fließtext, Leerzeile trennt Absätze, \n bleibt erhalten
+};
+export type LegalPage = {
+  title: string; // Seitentitel (<h1>)
+  sections: LegalSection[];
+};
+
 export type Content = {
   site: {
     brandName: string;
@@ -107,6 +126,12 @@ export type Content = {
     };
   };
   categories: Category[];
+  // Rechtstexte — eigene Seiten /impressum und /datenschutz, von der
+  // Verwaltung editierbar. Siehe LegalPage oben.
+  legal: {
+    impressum: LegalPage;
+    datenschutz: LegalPage;
+  };
 };
 
 export const DEFAULT_CONTENT: Content = {
@@ -257,4 +282,48 @@ export const DEFAULT_CONTENT: Content = {
       ],
     },
   ],
+  /* Start-Rechtstexte: 1:1 die bisherigen Platzhalter aus den statischen
+     Seiten — nichts geht verloren. Die Verwaltung ersetzt sie durch finale,
+     juristisch geprüfte Fassungen. (Der frühere „Entwurf"-Warnhinweis war
+     ein Meta-Banner, kein Inhalt, und entfällt in der CMS-Fassung.) */
+  legal: {
+    impressum: {
+      title: "Impressum",
+      sections: [
+        {
+          heading: "Anbieterin",
+          body: "Kathrin Haas\nRaum & Resonanz — Praxis für energetische Ganzheit und Körperharmonie\nRiegerweg 3\n83624 Otterfing",
+        },
+        {
+          heading: "Kontakt",
+          body: "Telefon: +49 170 3416314\nKontaktaufnahme bevorzugt über das Kontaktformular auf der Startseite.\nE-Mail-Adresse wird ergänzt.",
+        },
+        {
+          heading: "Berufsbezeichnung & Hinweise",
+          body: "[Angaben zu Tätigkeit, ggf. Aufsichtsbehörde und Steuernummer werden ergänzt.]\n\nDie angebotenen Methoden (Aurachirurgie, Jin Shin Jyutsu) dienen der energetischen Begleitung und ersetzen keine ärztliche oder psychotherapeutische Behandlung.",
+        },
+        {
+          heading: "Haftung für Inhalte",
+          body: "[Standard-Haftungstext wird ergänzt.]",
+        },
+      ],
+    },
+    datenschutz: {
+      title: "Datenschutz",
+      sections: [
+        {
+          heading: "Verantwortliche",
+          body: "Kathrin Haas · Riegerweg 3 · 83624 Otterfing",
+        },
+        {
+          heading: "Erhebung von Daten",
+          body: "Wenn du das Kontaktformular nutzt, werden die von dir eingegebenen Angaben (z. B. Name und deine Kontaktmöglichkeit) ausschließlich zur Bearbeitung deiner Anfrage verwendet.\n\n[Details zu Hosting, Speicherdauer und deinen Rechten werden ergänzt.]",
+        },
+        {
+          heading: "Deine Rechte",
+          body: "Du hast jederzeit das Recht auf Auskunft, Berichtigung und Löschung deiner gespeicherten Daten.\n\n[Vollständige Belehrung gemäß DSGVO wird ergänzt.]",
+        },
+      ],
+    },
+  },
 };
