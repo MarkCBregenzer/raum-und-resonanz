@@ -78,7 +78,8 @@ type Home = Content["home"];
 type ActivePage =
   | { kind: "home" }
   | { kind: "cat"; catId: string }
-  | { kind: "sub"; catId: string; subId: string };
+  | { kind: "sub"; catId: string; subId: string }
+  | { kind: "legal"; page: "impressum" | "datenschutz" };
 
 /* Pfad (von der Vorschau gemeldet) → aktive Seite als IDs auflösen. Pure
    Funktion: nimmt den aktuellen Inhaltsbaum mit, damit sie auch im nur
@@ -89,6 +90,10 @@ type ActivePage =
 function resolveActivePage(path: string, content: Content): ActivePage {
   const parts = path.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
   if (parts.length === 0) return { kind: "home" };
+  // Rechtsseiten zuerst (eigene Top-Level-Routen, keine Kategorien).
+  if (parts.length === 1 && (parts[0] === "impressum" || parts[0] === "datenschutz")) {
+    return { kind: "legal", page: parts[0] };
+  }
   const cat = content.categories.find((c) => c.slug === parts[0]);
   if (!cat) return { kind: "home" };
   if (parts.length === 1) return { kind: "cat", catId: cat.id };
@@ -309,15 +314,21 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
      Übersicht die Kategorie-Felder + die Übersichts-Felder aller Unterseiten.
      So bearbeitet man jedes Feld genau dort, wo die Vorschau es zeigt. */
   const activeCat =
-    activePage.kind === "home"
-      ? null
-      : content.categories.find((c) => c.id === activePage.catId) ?? null;
+    activePage.kind === "cat" || activePage.kind === "sub"
+      ? content.categories.find((c) => c.id === activePage.catId) ?? null
+      : null;
   const activeSub =
     activePage.kind === "sub" && activeCat
       ? activeCat.children.find((s) => s.id === activePage.subId) ?? null
       : null;
-  // Ohne passende Kategorie (oder Startseite) zeigen wir die Startseite.
-  const showHome = activePage.kind === "home" || activeCat === null;
+  // Drei sich gegenseitig ausschließende Ansichten, je nachdem, welche Seite
+  // die Vorschau zeigt: Startseite, Kategorie/Unterseite oder eine Rechtsseite.
+  // `isLegal` zuerst — eine Rechtsseite hat weder Home- noch Kategorie-Felder.
+  const isLegal = activePage.kind === "legal";
+  // Ohne passende Kategorie (oder echte Startseite) zeigen wir die Startseite.
+  const showHome = !isLegal && (activePage.kind === "home" || activeCat === null);
+  // Kategorie-/Unterseiten-Gruppe: weder Startseite noch Rechtsseite.
+  const showCategory = !isLegal && !showHome;
 
   // Bei jedem Content-Update den aktuellen Baum ins Iframe schicken.
   // Erst wenn die Vorschau ready ist (sonst geht das Signal verloren,
@@ -991,7 +1002,7 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
           Vorschau-Seite; über `activeSubId` schaltet er weiter um zwischen
           Kategorie-Übersicht und einzelner Unterseite (Slice 2). Die
           Überschrift zeigt als Brotkrümel, wo man steht. */}
-      <div className="editor-group" hidden={showHome}>
+      <div className="editor-group" hidden={!showCategory}>
         <h2 className="editor-group-title">
           {activeCat ? activeCat.navLabel : "Kategorie"}
           {activeSub && (
@@ -1012,31 +1023,32 @@ export function AdminEditor({ initialContent, initialPublished, sessionUser }: P
       </div>
 
       {/* ---------- Gruppe: Rechtliches ----------
-          IMMER sichtbar (nicht `hidden`-gesteuert wie die Home-/Kategorie-
-          Gruppe). Bewusster, kleiner Bruch mit dem „Editor folgt der
-          Vorschau"-Prinzip: die Rechtsseiten (/impressum, /datenschutz)
-          werden in der Live-Vorschau nicht gerendert, also gibt es keinen
-          Vorschau-Auslöser, der sie einblenden könnte. Darum stehen sie als
-          eigener Block am Ende des Formulars. (Eine echte Vorschau-Anbindung
-          der Rechtsseiten wäre eine eigene, größere Ausbaustufe.) */}
-      <div className="editor-group">
-        <h2 className="editor-group-title">Rechtliches</h2>
-        <LegalEditor
-          heading="Impressum"
-          page={content.legal.impressum}
-          onTitle={(v) => updateLegalTitle("impressum", v)}
-          onSection={(i, field, v) => updateLegalSection("impressum", i, field, v)}
-          onAdd={() => addLegalSection("impressum")}
-          onRemove={(i) => removeLegalSection("impressum", i)}
-        />
-        <LegalEditor
-          heading="Datenschutz"
-          page={content.legal.datenschutz}
-          onTitle={(v) => updateLegalTitle("datenschutz", v)}
-          onSection={(i, field, v) => updateLegalSection("datenschutz", i, field, v)}
-          onAdd={() => addLegalSection("datenschutz")}
-          onRemove={(i) => removeLegalSection("datenschutz", i)}
-        />
+          Folgt der Vorschau wie die anderen Gruppen: sichtbar nur, wenn die
+          Vorschau eine Rechtsseite zeigt (`isLegal`). Klickt man im Fuß der
+          Vorschau auf „Impressum" bzw. „Datenschutz", meldet die Vorschau den
+          Pfad, `activePage` wird `legal`, und genau der passende Editor
+          erscheint (die Home-/Kategorie-Gruppe blendet sich aus). So bearbeitet
+          man die Rechtsseite dort, wo die Vorschau sie zeigt. */}
+      <div className="editor-group" hidden={!isLegal}>
+        {activePage.kind === "legal" && (
+          <>
+            <h2 className="editor-group-title">
+              Rechtliches
+              <span className="crumb">
+                {" › "}
+                {activePage.page === "impressum" ? "Impressum" : "Datenschutz"}
+              </span>
+            </h2>
+            <LegalEditor
+              heading={activePage.page === "impressum" ? "Impressum" : "Datenschutz"}
+              page={content.legal[activePage.page]}
+              onTitle={(v) => updateLegalTitle(activePage.page, v)}
+              onSection={(i, field, v) => updateLegalSection(activePage.page, i, field, v)}
+              onAdd={() => addLegalSection(activePage.page)}
+              onRemove={(i) => removeLegalSection(activePage.page, i)}
+            />
+          </>
+        )}
       </div>
 
           {/* Die Aktions-Knöpfe (Speichern/Verwerfen/Veröffentlichen) und die

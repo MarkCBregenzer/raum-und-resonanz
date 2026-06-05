@@ -14,6 +14,7 @@ import {
 } from "../../components/Sections";
 import { CategoryView } from "../../components/views/CategoryView";
 import { SubpageView } from "../../components/views/SubpageView";
+import { LegalPageView } from "../../components/views/LegalPageView";
 import {
   SECTION_BY_ID,
   MSG_SCROLL_TO,
@@ -103,10 +104,13 @@ function isPreviewMessage(data: unknown): data is PreviewMessage {
 /* ---------- Route-Parsing ----------
    Macht aus einem Pfad wie "/aurachirurgie/was-ist-aurachirurgie"
    eine getaggte Union, die das JSX direkt rendern kann. */
+type LegalSlug = "impressum" | "datenschutz";
+
 type Route =
   | { kind: "home" }
   | { kind: "category"; cat: Category }
   | { kind: "subpage"; cat: Category; sub: Subpage }
+  | { kind: "legal"; page: LegalSlug }
   | { kind: "notfound"; pathname: string };
 
 function parseRoute(pathname: string, categories: Category[]): Route {
@@ -115,6 +119,11 @@ function parseRoute(pathname: string, categories: Category[]): Route {
 
   // Pfad in Segmente zerlegen und leere abschneiden.
   const parts = pathname.replace(/^\/+|\/+$/g, "").split("/");
+
+  // Rechtsseiten zuerst prüfen (eigene Top-Level-Routen, keine Kategorien).
+  if (parts.length === 1 && (parts[0] === "impressum" || parts[0] === "datenschutz")) {
+    return { kind: "legal", page: parts[0] };
+  }
 
   if (parts.length === 1) {
     const cat = categories.find((c) => c.slug === parts[0]);
@@ -617,18 +626,29 @@ export function PreviewClient({ initialContent }: { initialContent: Content }) {
           )}
         </div>
 
-        <SiteHeader categories={content.categories} />
-        <main>
-          {route.kind === "home" && <HomeView content={content} />}
-          {route.kind === "category" && <CategoryView cat={route.cat} />}
-          {route.kind === "subpage" && (
-            <SubpageView cat={route.cat} sub={route.sub} />
-          )}
-          {route.kind === "notfound" && (
-            <NotFoundView pathname={route.pathname} />
-          )}
-        </main>
-        <SiteFooter />
+        {/* Rechtsseiten rendern BEWUSST ohne Kopf-/Fußzeile — genau wie die
+            öffentliche Route (`app/impressum/page.tsx` zeigt nur
+            `<main className="legal">` mit Zurück-Link). So bleibt
+            „Vorschau == öffentlich" erhalten. Folge: zwischen Impressum und
+            Datenschutz wechselt man über „Zur Startseite" + Fußzeilen-Link. */}
+        {route.kind === "legal" ? (
+          <LegalPageView page={content.legal[route.page]} />
+        ) : (
+          <>
+            <SiteHeader categories={content.categories} />
+            <main>
+              {route.kind === "home" && <HomeView content={content} />}
+              {route.kind === "category" && <CategoryView cat={route.cat} />}
+              {route.kind === "subpage" && (
+                <SubpageView cat={route.cat} sub={route.sub} />
+              )}
+              {route.kind === "notfound" && (
+                <NotFoundView pathname={route.pathname} />
+              )}
+            </main>
+            <SiteFooter />
+          </>
+        )}
       </div>
     </>
   );
@@ -666,10 +686,9 @@ function HomeView({ content }: { content: Content }) {
 
 /* NotFoundView — freundliche Fallback-Ansicht.
    Statt eines harten 404 in der Vorschau zeigen wir einen kurzen
-   Hinweis und bieten den Weg zurück. Tritt auf, wenn z. B. ein
-   Footer-Link auf /impressum klickt (existiert real, ist aber in
-   dieser Mini-Render-Schicht nicht abgebildet) oder ein Slug
-   umbenannt wurde, der gerade noch geöffnet war. */
+   Hinweis und bieten den Weg zurück. Tritt z. B. auf, wenn ein Slug
+   umbenannt wurde, der gerade noch geöffnet war. (Impressum und
+   Datenschutz werden inzwischen regulär gerendert.) */
 function NotFoundView({ pathname }: { pathname: string }) {
   return (
     <div className="preview-notfound">
@@ -678,9 +697,8 @@ function NotFoundView({ pathname }: { pathname: string }) {
         Diese Seite wird in der Vorschau nicht gerendert.
       </h2>
       <p>
-        Pfad <code>{pathname}</code> existiert entweder nicht im aktuellen
-        Inhaltsbaum, oder er liegt außerhalb des Editor-Umfangs (z. B.
-        Impressum, Datenschutz).
+        Pfad <code>{pathname}</code> existiert nicht im aktuellen
+        Inhaltsbaum (z. B. ein gerade umbenannter Slug).
       </p>
       <p style={{ marginTop: 24 }}>
         <a href="/" className="more">
