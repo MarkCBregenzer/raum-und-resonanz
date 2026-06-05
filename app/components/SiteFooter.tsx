@@ -1,4 +1,5 @@
 import { Logo } from "./Logo";
+import { CookieSettingsLink } from "./CookieBanner";
 
 /* Footer
    Tief-violetter Schließblock mit Logo-Lockup, Sitemap, Praxisdaten.
@@ -29,6 +30,9 @@ export function SiteFooter() {
               <ul>
                 <li><a href="/impressum">Impressum</a></li>
                 <li><a href="/datenschutz">Datenschutz</a></li>
+                {/* Öffnet das Cookie-Banner erneut (Client-Schnipsel,
+                    feuert CONSENT_OPEN). */}
+                <li><CookieSettingsLink /></li>
               </ul>
             </div>
             <div className="footer-col">

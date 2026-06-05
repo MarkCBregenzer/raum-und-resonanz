@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, EB_Garamond } from "next/font/google";
 import Script from "next/script";
+import { CookieBanner } from "./components/CookieBanner";
 import "./globals.css";
 
 // next/font lädt Google Fonts lokal — kein CDN-Roundtrip, keine FOUT.
@@ -53,6 +54,11 @@ export default function RootLayout({
           Mismatches in den Kindern bleiben weiterhin sichtbar. */}
       <body suppressHydrationWarning>
         {children}
+        {/* Cookie-/Einwilligungs-Banner (DSGVO/TTDSG). Client-Component:
+            blendet sich erst nach dem Mounten ein, wenn noch keine
+            Entscheidung gespeichert ist. Liegt im Root-Layout, deckt also
+            alle öffentlichen Routen ab; im Admin blendet es sich selbst aus. */}
+        <CookieBanner />
         {/* Zugangssperre (Vorschau-Phase) — Passwort-Gate vor Hydration.
            strategy="beforeInteractive" injiziert das <script> direkt ins
            server-gerenderte HTML, damit es vor jedem Next.js-Modul läuft
