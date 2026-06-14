@@ -358,13 +358,14 @@ Soweit die Inhalte auf dieser Seite nicht von der Betreiberin erstellt wurden, w
        DATENSCHUTZERKLÄRUNG — Art. 13 DSGVO. Nur Verarbeitungen, die
        wirklich stattfinden:
        • Hosting: Vercel (Pro), Functions auf fra1/EU gepinnt (vercel.json).
+         Inhalte in Neon-PostgreSQL, Region Frankfurt (DE/EU).
        • Server-Logfiles bei Vercel.
        • KEINE Tracking-Cookies — nur localStorage (rr-unlocked, rr-consent);
          Banner-Option „Statistik" verarbeitet aktuell NICHTS (Vorsorge).
        • Kontaktformular: verdrahtet über den Contact-Relay
          (/api/contact → contact-relay-phi.vercel.app → Exchange Online →
-         Postfach). Offene [PRÜFEN]: Relay-Betreiber als Auftragsverarbeiter
-         benennen/AVV; Tenant-Datenstandort EU/EFTA des sendenden Postfachs.
+         Postfach). Tenant-Standort EU bestätigt → EU Data Boundary.
+         Offenes [PRÜFEN]: Relay-Betreiber als Auftragsverarbeiter/AVV.
        Zuständige Aufsichtsbehörde: BayLDA (Bayern, Sitz Otterfing).
        ---------------------------------------------------------------- */
     datenschutz: {
@@ -389,6 +390,8 @@ E-Mail: racy.rabbit@web.de`,
 Serverseitige Funktionen sind auf die Region Frankfurt (EU, „fra1") festgelegt, sodass eine dort stattfindende Verarbeitung innerhalb der EU erfolgt. Statische Inhalte werden über das weltweite Content-Delivery-Netzwerk von Vercel ausgeliefert. Beim Seitenaufruf verarbeitet Vercel technisch notwendige Verbindungsdaten (siehe „Server-Logfiles").
 
 Soweit dabei personenbezogene Daten in die USA übermittelt werden, ist Vercel unter dem EU-US Data Privacy Framework zertifiziert; ergänzend werden die EU-Standardvertragsklauseln (Durchführungsbeschluss 2021/914) herangezogen.
+
+Die redaktionellen Inhalte der Website (Texte und Bilder) werden in einer PostgreSQL-Datenbank des Anbieters Neon gespeichert. Diese Datenbank wird in einem Rechenzentrum in Frankfurt am Main (Deutschland, EU) betrieben. In der Datenbank werden keine über das Kontaktformular übermittelten Daten abgelegt (siehe „Kontaktformular").
 
 Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und effizienten Bereitstellung der Website (Art. 6 Abs. 1 lit. f DSGVO).`,
         },
@@ -416,7 +419,7 @@ Im durch Login geschützten Verwaltungsbereich (/admin) wird zusätzlich ein tec
 
 Technischer Ablauf: Ihre Eingaben werden von unserem Server an einen Vermittlungsdienst (Contact-Relay) übergeben, der daraus eine E-Mail erzeugt und an unser Postfach zustellt. Der Dienst speichert die Nachrichteninhalte nicht dauerhaft; Protokolle enthalten nur Zeitpunkt, Kennung der Website und das Ergebnis, nicht jedoch Namen, E-Mail-Adressen oder Nachrichtentexte. [PRÜFEN: Betreiber des Contact-Relay (Mark Bregenzer / bregenzer.eu) als Auftragsverarbeiter benennen und einen Vertrag zur Auftragsverarbeitung abschließen.]
 
-Der eigentliche E-Mail-Versand erfolgt über Microsoft Exchange Online. Auftragsverarbeiter hierfür ist die Microsoft Ireland Operations Ltd., One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Mit Microsoft besteht ein Auftragsverarbeitungsvertrag; Datenübermittlungen werden auf die EU-Standardvertragsklauseln (2021/914) gestützt und durch die Zertifizierung unter dem EU-US Data Privacy Framework ergänzt. [PRÜFEN: Tenant-Datenstandort EU/EFTA des sendenden Postfachs bestätigen. Nur dann gilt: Mailinhalte werden im Rahmen der EU Data Boundary innerhalb der EU/EFTA gespeichert und verarbeitet (begrenzte, von Microsoft dokumentierte Ausnahmen vorbehalten). Multi-Geo-Tenants sind hiervon nicht erfasst.]
+Der eigentliche E-Mail-Versand erfolgt über Microsoft Exchange Online. Auftragsverarbeiter hierfür ist die Microsoft Ireland Operations Ltd., One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Mit Microsoft besteht ein Auftragsverarbeitungsvertrag; Datenübermittlungen werden auf die EU-Standardvertragsklauseln (2021/914) gestützt und durch die Zertifizierung unter dem EU-US Data Privacy Framework ergänzt. Das sendende Postfach liegt in einem Microsoft-365-Tenant mit Datenstandort in der EU; damit greift die EU Data Boundary: Mailinhalte werden innerhalb der EU/EFTA gespeichert und verarbeitet (begrenzte, von Microsoft dokumentierte Ausnahmen vorbehalten).
 
 Zum Schutz vor automatisiertem Missbrauch nutzen wir ein verstecktes Pflichtfeld (Honeypot) sowie eine Begrenzung der Anfragehäufigkeit.
 
