@@ -107,11 +107,11 @@ export function CookieBanner() {
         <div className="cookie-text">
           <h2>Datenschutz &amp; Cookies</h2>
           <p>
-            Diese Seite nutzt nur technisch notwendige Speicherung. Optional
-            kannst du anonyme Statistik erlauben, damit wir die Seite
-            verbessern können. Du entscheidest — und kannst deine Wahl
-            jederzeit über „Cookie-Einstellungen" im Seitenfuß ändern. Mehr
-            dazu in der{" "}
+            Diese Seite nutzt nur technisch notwendige Speicherung und setzt
+            keine Tracking-Cookies. Optional kannst du anonyme Statistik
+            erlauben — derzeit ist allerdings kein Statistik-Werkzeug aktiv, die
+            Option ist reine Vorsorge für später. Du kannst deine Wahl jederzeit
+            über „Cookie-Einstellungen" im Seitenfuß ändern. Mehr dazu in der{" "}
             <a href="/datenschutz">Datenschutzerklärung</a>.
           </p>
         </div>
@@ -142,7 +142,8 @@ export function CookieBanner() {
                 <strong>Statistik</strong>
                 <small>
                   Anonyme Auswertung der Nutzung, um die Seite zu verbessern.
-                  Standardmäßig aus.
+                  Derzeit ist kein solches Werkzeug eingebunden; standardmäßig
+                  aus.
                 </small>
               </span>
             </label>

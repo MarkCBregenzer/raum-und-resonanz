@@ -849,7 +849,24 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 0 0 4px rgba(94, 51, 112, 0.1);
 }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* Pflicht-Einwilligungs-Zeile: Checkbox links, Text daneben (nicht
+   umfließend). align-items:start hält die Box auf Höhe der ersten Textzeile. */
+.field-consent { margin-bottom: 18px; }
+.field-consent label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: start;
+  font-size: 0.96rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  cursor: pointer;
+}
+.field-consent input { margin-top: 0.25em; }
 .form-note { font-size: 0.96rem; color: var(--ink-soft); margin-top: 4px; }
+/* Fehlerhinweis unter dem Senden-Button: ruhig, aber klar abgesetzt. */
+.form-error { font-size: 0.96rem; color: #8a2f2f; margin-top: 10px; }
+.form-error a { color: inherit; text-decoration: underline; }
 .form-card .btn { width: 100%; justify-content: center; margin-top: 6px; }
 
 /* ImageField — Bild auswählen / hineinziehen (Admin). Zeile aus

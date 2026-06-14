@@ -287,41 +287,162 @@ export const DEFAULT_CONTENT: Content = {
      juristisch geprüfte Fassungen. (Der frühere „Entwurf"-Warnhinweis war
      ein Meta-Banner, kein Inhalt, und entfällt in der CMS-Fassung.) */
   legal: {
+    /* ----------------------------------------------------------------
+       IMPRESSUM — § 5 DDG (Digitale-Dienste-Gesetz) + § 18 Abs. 2 MStV.
+       An die reale Seite angepasst: Einzelanbieterin, Privat-=Praxis-
+       anschrift (von Mark bewusst öffentlich freigegeben), Tätigkeit als
+       energetische Dienstleistung OHNE Heilversprechen.
+
+       Offene Pflicht-/Prüf-Punkte sind im Text mit [PRÜFEN: …] markiert.
+       Hinweis OS-Plattform: Die EU-Online-Streitbeilegungsplattform wurde
+       zum 20.07.2025 eingestellt — daher KEIN OS-Link mehr, nur noch die
+       VSBG-Erklärung. Diese Texte sind eine Vorlage, KEINE Rechtsberatung;
+       vor dem Live-Gang anwaltlich/datenschutzrechtlich prüfen lassen.
+       ---------------------------------------------------------------- */
     impressum: {
       title: "Impressum",
       sections: [
         {
-          heading: "Anbieterin",
-          body: "Kathrin Haas\nRaum & Resonanz — Praxis für energetische Ganzheit und Körperharmonie\nRiegerweg 3\n83624 Otterfing",
+          heading: "Angaben gemäß § 5 DDG",
+          body: `Kathrin Haas
+Raum & Resonanz – Praxis für energetische Ganzheit und Körperharmonie
+Riegerweg 3
+83624 Otterfing
+Deutschland`,
         },
         {
           heading: "Kontakt",
-          body: "Telefon: +49 170 3416314\nKontaktaufnahme bevorzugt über das Kontaktformular auf der Startseite.\nE-Mail-Adresse wird ergänzt.",
+          body: `Telefon: +49 170 3416314
+E-Mail: racy.rabbit@web.de`,
         },
         {
-          heading: "Berufsbezeichnung & Hinweise",
-          body: "[Angaben zu Tätigkeit, ggf. Aufsichtsbehörde und Steuernummer werden ergänzt.]\n\nDie angebotenen Methoden (Aurachirurgie, Jin Shin Jyutsu) dienen der energetischen Begleitung und ersetzen keine ärztliche oder psychotherapeutische Behandlung.",
+          heading: "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV",
+          body: `Kathrin Haas
+Anschrift wie oben.`,
+        },
+        {
+          heading: "Umsatzsteuer-Identifikationsnummer",
+          body: `[PRÜFEN: Falls eine Umsatzsteuer-Identifikationsnummer nach § 27a UStG vorhanden ist, hier angeben. Wird die Tätigkeit als Kleinunternehmen nach § 19 UStG geführt, kann dieser Abschnitt entfallen.]`,
+        },
+        {
+          heading: "Art der Tätigkeit und Hinweis zu den Methoden",
+          body: `Raum & Resonanz bietet energetische Begleitung an (unter anderem Aurachirurgie und Jin Shin Jyutsu). Diese Methoden dienen dem persönlichen Wohlbefinden und der energetischen Ganzheit.
+
+Sie stellen keine Ausübung der Heilkunde im Sinne des Heilpraktikergesetzes dar und ersetzen keine ärztliche, psychotherapeutische oder sonstige heilkundliche Diagnose oder Behandlung. Es werden keine Heilversprechen gegeben.`,
         },
         {
           heading: "Haftung für Inhalte",
-          body: "[Standard-Haftungstext wird ergänzt.]",
+          body: `Als Diensteanbieterin sind wir gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG sind wir als Diensteanbieterin jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.
+
+Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden entsprechender Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.`,
+        },
+        {
+          heading: "Haftung für Links",
+          body: `Unser Angebot enthält gegebenenfalls Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets die jeweilige Anbieterin oder der jeweilige Betreiber verantwortlich.
+
+Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft; rechtswidrige Inhalte waren nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend entfernen.`,
+        },
+        {
+          heading: "Urheberrecht",
+          body: `Die durch die Betreiberin erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechts bedürfen der schriftlichen Zustimmung der jeweiligen Urheberin bzw. des jeweiligen Urhebers.
+
+Soweit die Inhalte auf dieser Seite nicht von der Betreiberin erstellt wurden, werden die Urheberrechte Dritter beachtet. Sollten Sie dennoch auf eine Urheberrechtsverletzung aufmerksam werden, bitten wir um einen entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen werden wir solche Inhalte umgehend entfernen.`,
+        },
+        {
+          heading: "Verbraucherstreitbeilegung",
+          body: `Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen (§ 36 VSBG).`,
         },
       ],
     },
+    /* ----------------------------------------------------------------
+       DATENSCHUTZERKLÄRUNG — Art. 13 DSGVO. Nur Verarbeitungen, die
+       wirklich stattfinden:
+       • Hosting: Vercel (Pro), Functions auf fra1/EU gepinnt (vercel.json).
+       • Server-Logfiles bei Vercel.
+       • KEINE Tracking-Cookies — nur localStorage (rr-unlocked, rr-consent);
+         Banner-Option „Statistik" verarbeitet aktuell NICHTS (Vorsorge).
+       • Kontaktformular: verdrahtet über den Contact-Relay
+         (/api/contact → contact-relay-phi.vercel.app → Exchange Online →
+         Postfach). Offene [PRÜFEN]: Relay-Betreiber als Auftragsverarbeiter
+         benennen/AVV; Tenant-Datenstandort EU/EFTA des sendenden Postfachs.
+       Zuständige Aufsichtsbehörde: BayLDA (Bayern, Sitz Otterfing).
+       ---------------------------------------------------------------- */
     datenschutz: {
       title: "Datenschutz",
       sections: [
         {
-          heading: "Verantwortliche",
-          body: "Kathrin Haas · Riegerweg 3 · 83624 Otterfing",
+          heading: "Verantwortliche Stelle",
+          body: `Verantwortlich für die Datenverarbeitung auf dieser Website ist:
+
+Kathrin Haas
+Raum & Resonanz
+Riegerweg 3
+83624 Otterfing
+Deutschland
+Telefon: +49 170 3416314
+E-Mail: racy.rabbit@web.de`,
         },
         {
-          heading: "Erhebung von Daten",
-          body: "Wenn du das Kontaktformular nutzt, werden die von dir eingegebenen Angaben (z. B. Name und deine Kontaktmöglichkeit) ausschließlich zur Bearbeitung deiner Anfrage verwendet.\n\n[Details zu Hosting, Speicherdauer und deinen Rechten werden ergänzt.]",
+          heading: "Hosting",
+          body: `Diese Website wird bei der Vercel Inc., 440 N Barranca Avenue #4133, Covina, CA 91723, USA, gehostet. Mit Vercel besteht ein Auftragsverarbeitungsvertrag (Data Processing Addendum), der im Pro-Tarif automatisch Vertragsbestandteil ist.
+
+Serverseitige Funktionen sind auf die Region Frankfurt (EU, „fra1") festgelegt, sodass eine dort stattfindende Verarbeitung innerhalb der EU erfolgt. Statische Inhalte werden über das weltweite Content-Delivery-Netzwerk von Vercel ausgeliefert. Beim Seitenaufruf verarbeitet Vercel technisch notwendige Verbindungsdaten (siehe „Server-Logfiles").
+
+Soweit dabei personenbezogene Daten in die USA übermittelt werden, ist Vercel unter dem EU-US Data Privacy Framework zertifiziert; ergänzend werden die EU-Standardvertragsklauseln (Durchführungsbeschluss 2021/914) herangezogen.
+
+Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und effizienten Bereitstellung der Website (Art. 6 Abs. 1 lit. f DSGVO).`,
         },
         {
-          heading: "Deine Rechte",
-          body: "Du hast jederzeit das Recht auf Auskunft, Berichtigung und Löschung deiner gespeicherten Daten.\n\n[Vollständige Belehrung gemäß DSGVO wird ergänzt.]",
+          heading: "Server-Logfiles",
+          body: `Beim Aufruf der Website werden automatisch Verbindungsdaten erhoben, die Ihr Browser übermittelt: IP-Adresse, Datum und Uhrzeit des Zugriffs, die abgerufene Ressource, die übertragene Datenmenge, die Referrer-URL sowie Angaben zu Browser und Betriebssystem (User-Agent).
+
+Diese Daten dienen dem sicheren und stabilen Betrieb der Website und werden nicht mit anderen Datenquellen zusammengeführt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO. Eine feste Speicherdauer veröffentlicht unser Hosting-Anbieter nicht; die Speicherung erfolgt nur für den hierfür erforderlichen Zeitraum.`,
+        },
+        {
+          heading: "Cookies und lokale Speicherung",
+          body: `Diese Website setzt keine Tracking-, Analyse- oder Werbe-Cookies und bindet keine externen Analyse- oder Werbedienste ein.
+
+Genutzt wird ausschließlich der lokale Speicher Ihres Browsers (localStorage) für zwei technisch notwendige Zwecke:
+– „rr-unlocked": merkt sich während der Vorbereitungsphase, dass Sie das Zugangswort eingegeben haben.
+– „rr-consent": speichert Ihre Einwilligungs-Entscheidung, damit der Cookie-Hinweis nicht bei jedem Besuch erneut erscheint.
+
+Diese lokale Speicherung ist für den Betrieb erforderlich; das Speichern der Einwilligungs-Entscheidung selbst bedarf keiner Zustimmung. Über das Banner können Sie optional „Statistik" erlauben. Derzeit ist kein Statistik- oder Analysewerkzeug eingebunden, sodass auch bei erteilter Einwilligung aktuell keine entsprechenden Daten verarbeitet werden; die Option ist für eine eventuelle spätere Nutzung vorgesehen. Sie können Ihre Wahl jederzeit über „Cookie-Einstellungen" im Seitenfuß ändern.
+
+Im durch Login geschützten Verwaltungsbereich (/admin) wird zusätzlich ein technisch notwendiges Sitzungs-Cookie gesetzt. Dieser Bereich ist nicht öffentlich.`,
+        },
+        {
+          heading: "Kontaktformular",
+          body: `Wenn Sie das Kontaktformular absenden, verarbeiten wir die von Ihnen eingegebenen Angaben (Name, E-Mail-Adresse, optional Telefon und Wunschtermin sowie Ihre Nachricht), um Ihre Anfrage zu bearbeiten.
+
+Technischer Ablauf: Ihre Eingaben werden von unserem Server an einen Vermittlungsdienst (Contact-Relay) übergeben, der daraus eine E-Mail erzeugt und an unser Postfach zustellt. Der Dienst speichert die Nachrichteninhalte nicht dauerhaft; Protokolle enthalten nur Zeitpunkt, Kennung der Website und das Ergebnis, nicht jedoch Namen, E-Mail-Adressen oder Nachrichtentexte. [PRÜFEN: Betreiber des Contact-Relay (Mark Bregenzer / bregenzer.eu) als Auftragsverarbeiter benennen und einen Vertrag zur Auftragsverarbeitung abschließen.]
+
+Der eigentliche E-Mail-Versand erfolgt über Microsoft Exchange Online. Auftragsverarbeiter hierfür ist die Microsoft Ireland Operations Ltd., One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Mit Microsoft besteht ein Auftragsverarbeitungsvertrag; Datenübermittlungen werden auf die EU-Standardvertragsklauseln (2021/914) gestützt und durch die Zertifizierung unter dem EU-US Data Privacy Framework ergänzt. [PRÜFEN: Tenant-Datenstandort EU/EFTA des sendenden Postfachs bestätigen. Nur dann gilt: Mailinhalte werden im Rahmen der EU Data Boundary innerhalb der EU/EFTA gespeichert und verarbeitet (begrenzte, von Microsoft dokumentierte Ausnahmen vorbehalten). Multi-Geo-Tenants sind hiervon nicht erfasst.]
+
+Zum Schutz vor automatisiertem Missbrauch nutzen wir ein verstecktes Pflichtfeld (Honeypot) sowie eine Begrenzung der Anfragehäufigkeit.
+
+Rechtsgrundlage ist Ihre Einwilligung beim Absenden (Art. 6 Abs. 1 lit. a DSGVO) sowie unser berechtigtes Interesse an der Beantwortung Ihrer Anfrage (Art. 6 Abs. 1 lit. f DSGVO). Die Einwilligung erteilen Sie über die Pflicht-Checkbox im Formular; Sie können sie jederzeit mit Wirkung für die Zukunft widerrufen. Wir verarbeiten Ihre Angaben, bis Ihre Anfrage abschließend bearbeitet ist, und löschen sie anschließend, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.`,
+        },
+        {
+          heading: "Kontaktaufnahme per E-Mail oder Telefon",
+          body: `Wenn Sie uns per E-Mail oder Telefon kontaktieren, verarbeiten wir Ihre Angaben zur Bearbeitung Ihres Anliegens. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Beantwortung) bzw. Art. 6 Abs. 1 lit. b DSGVO, soweit es um die Anbahnung oder Durchführung eines Vertrags geht.`,
+        },
+        {
+          heading: "Ihre Rechte",
+          body: `Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) sowie das Recht, einer Verarbeitung zu widersprechen (Art. 21 DSGVO). Eine erteilte Einwilligung können Sie jederzeit mit Wirkung für die Zukunft widerrufen.
+
+Wenden Sie sich dazu an die oben genannte verantwortliche Stelle.`,
+        },
+        {
+          heading: "Beschwerderecht bei der Aufsichtsbehörde",
+          body: `Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde über die Verarbeitung Ihrer personenbezogenen Daten zu beschweren. Die für uns zuständige Behörde ist:
+
+Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)
+Promenade 18
+91522 Ansbach`,
+        },
+        {
+          heading: "Aktualität dieser Datenschutzerklärung",
+          body: `Diese Datenschutzerklärung ist aktuell gültig. Durch die Weiterentwicklung der Website oder geänderte gesetzliche Vorgaben kann es nötig werden, sie anzupassen. [PRÜFEN: Stand/Datum bei Veröffentlichung einsetzen.]`,
         },
       ],
     },
