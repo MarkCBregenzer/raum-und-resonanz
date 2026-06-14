@@ -364,7 +364,7 @@ Soweit die Inhalte auf dieser Seite nicht von der Betreiberin erstellt wurden, w
          Banner-Option „Statistik" verarbeitet aktuell NICHTS (Vorsorge).
        • Kontaktformular: verdrahtet über den Contact-Relay
          (/api/contact → contact-relay-phi.vercel.app → Exchange Online →
-         Postfach). Tenant-Standort EU bestätigt → EU Data Boundary.
+         Postfach). Tenant-Standort Deutschland/Frankfurt → EU Data Boundary.
          Offenes [PRÜFEN]: Relay-Betreiber als Auftragsverarbeiter/AVV.
        Zuständige Aufsichtsbehörde: BayLDA (Bayern, Sitz Otterfing).
        ---------------------------------------------------------------- */
@@ -419,7 +419,7 @@ Im durch Login geschützten Verwaltungsbereich (/admin) wird zusätzlich ein tec
 
 Technischer Ablauf: Ihre Eingaben werden von unserem Server an einen Vermittlungsdienst (Contact-Relay) übergeben, der daraus eine E-Mail erzeugt und an unser Postfach zustellt. Der Dienst speichert die Nachrichteninhalte nicht dauerhaft; Protokolle enthalten nur Zeitpunkt, Kennung der Website und das Ergebnis, nicht jedoch Namen, E-Mail-Adressen oder Nachrichtentexte. [PRÜFEN: Betreiber des Contact-Relay (Mark Bregenzer / bregenzer.eu) als Auftragsverarbeiter benennen und einen Vertrag zur Auftragsverarbeitung abschließen.]
 
-Der eigentliche E-Mail-Versand erfolgt über Microsoft Exchange Online. Auftragsverarbeiter hierfür ist die Microsoft Ireland Operations Ltd., One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Mit Microsoft besteht ein Auftragsverarbeitungsvertrag; Datenübermittlungen werden auf die EU-Standardvertragsklauseln (2021/914) gestützt und durch die Zertifizierung unter dem EU-US Data Privacy Framework ergänzt. Das sendende Postfach liegt in einem Microsoft-365-Tenant mit Datenstandort in der EU; damit greift die EU Data Boundary: Mailinhalte werden innerhalb der EU/EFTA gespeichert und verarbeitet (begrenzte, von Microsoft dokumentierte Ausnahmen vorbehalten).
+Der eigentliche E-Mail-Versand erfolgt über Microsoft Exchange Online. Auftragsverarbeiter hierfür ist die Microsoft Ireland Operations Ltd., One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Mit Microsoft besteht ein Auftragsverarbeitungsvertrag; Datenübermittlungen werden auf die EU-Standardvertragsklauseln (2021/914) gestützt und durch die Zertifizierung unter dem EU-US Data Privacy Framework ergänzt. Das sendende Postfach liegt in einem Microsoft-365-Tenant mit Datenstandort in Deutschland (Frankfurt). Die Mailinhalte werden somit primär in Deutschland gespeichert; im Rahmen der EU Data Boundary erfolgt die Verarbeitung innerhalb der EU/EFTA (begrenzte, von Microsoft dokumentierte Ausnahmen vorbehalten).
 
 Zum Schutz vor automatisiertem Missbrauch nutzen wir ein verstecktes Pflichtfeld (Honeypot) sowie eine Begrenzung der Anfragehäufigkeit.
 
